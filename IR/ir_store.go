@@ -17,11 +17,11 @@ func NewReplica(id int) *Replica {
 	return &replica
 }
 
-func (r *Replica) Start() {
+func (r *Replica) Start() error {
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	for {
 		conn, err := ln.Accept()
