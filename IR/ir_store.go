@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/rpc"
 )
 
 const (
@@ -13,9 +14,10 @@ const (
 )
 
 type Replica struct {
-	replica_id int
-	partition  int // partition number
-	state      int // state of the replica (NORMAL or VIEWCHANGING)
+	replica_id    int
+	partition     int // partition number
+	state         int // state of the replica (NORMAL or VIEWCHANGING)
+	otherReplicas []*rpc.Client
 }
 
 type record struct {

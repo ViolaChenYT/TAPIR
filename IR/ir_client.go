@@ -3,7 +3,10 @@ package IR
 import (
 	"bufio" //
 	"fmt"
+	"io"
 	"net"
+	"net/rpc"
+	"strconv"
 	"time"
 )
 
@@ -11,6 +14,8 @@ type Client struct {
 	client_id     int
 	operation_cnt int
 	conn          net.Conn
+	close         chan bool // close channel
+	rpcclient     *rpc.Client
 }
 
 type operation struct {
@@ -26,32 +31,37 @@ type result struct {
 	value   string
 }
 
-func NewClient(id int) *Client {
-	client := Client{client_id: id, operation_cnt: 0}
-	return &client
-}
-
-func (c *Client) Start() error { // supposed to start connections / rpc
+func NewClient(id int, serverHost string, serverPort int) (*Client, error) {
+	cli, err := rpc.DialHTTP("tcp", net.JoinHostPort(serverHost, strconv.Itoa(serverPort)))
+	if err != nil {
+		return nil, err
+	}
+	client := Client{
+		client_id:     id,
+		operation_cnt: 0,
+		close:         make(chan bool),
+		rpcclient:     cli,
+	}
 	conn, err := net.Dial("tcp", "localhost:8080")
-	c.conn = conn
+	client.conn = conn
 	if err != nil {
 		fmt.Println(err)
-		return err
 	}
-	defer c.conn.Close()
-	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	go client.handleConnection()
+	return &client, nil
+}
+
+func (c *Client) handleConnection() {
+	rw := bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
 	for {
-		_, err := rw.WriteString(fmt.Sprintf("Hello, Server! %d\n", c.operation_cnt))
+		msg, err := rw.ReadString('\n')
 		if err != nil {
-			fmt.Println(err)
-			return err
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+			return
 		}
-		err = rw.Flush()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		c.operation_cnt++
+		fmt.Println(msg)
 	}
 }
 
