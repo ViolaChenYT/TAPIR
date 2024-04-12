@@ -7,9 +7,19 @@ import (
 	"net"
 )
 
+const (
+	NORMAL       = iota
+	VIEWCHANGING = iota
+)
+
 type Replica struct {
 	replica_id int
 	partition  int // partition number
+	state      int // state of the replica (NORMAL or VIEWCHANGING)
+}
+
+type record struct {
+	values map[operation]bool
 }
 
 func NewReplica(id int) *Replica {
@@ -46,4 +56,20 @@ func (r *Replica) handleConnection(conn net.Conn) {
 		}
 		fmt.Println(msg)
 	}
+}
+
+func (r *Replica) ExecInconsistent(operation) error {
+	return nil
+}
+
+func (r *Replica) ExecConsensus(operation) (result, error) {
+	return result{}, nil
+}
+
+func (r *Replica) Sync() error {
+	return nil
+}
+
+func (r *Replica) Merge(d, u) (record, error) {
+	return record{}, nil
 }
