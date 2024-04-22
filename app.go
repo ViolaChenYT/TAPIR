@@ -21,9 +21,9 @@ type BankDB struct {
 // NewTwitterDB creates a new TwitterDB instance.
 func NewBankDB(account_id_length int) *BankDB {
 	return &BankDB{
-		storage: // TODO: initialize storage,
+		storage: ,// TODO: initialize storage,
 		num_accounts: 0,
-		account_id_length: account_id_length
+		account_id_length: account_id_length,
 	}
 }
 
@@ -59,7 +59,7 @@ func (db *BankDB) updateAccount(account_id string) error {
 }
 
 // Create a new account for the given user, return the generate account id
-func (db *NewBankDB) CreateAccount(user_name string) (string, error) {
+func (db *BankDB) CreateAccount(user_name string) (string, error) {
 	db.new_account_id++
 
 	// Generate account ID

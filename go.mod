@@ -1,3 +1,3 @@
-module tapir
+module github.com/ViolaChenYT/TAPIR
 
-go 1.17
+go 1.22.2
