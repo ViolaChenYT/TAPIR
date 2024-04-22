@@ -1,9 +1,5 @@
 package tapir
 
-import (
-	"IR"
-)
-
 type Client interface {
 	// Begin a transaction.
 	Begin()
