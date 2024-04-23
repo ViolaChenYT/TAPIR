@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"sync"
 	"time"
 )
 
+const ( // number of replicas that can be down at any one point
+	f = 2 // seems the math tally up nicer
+) // total 2f + 1 = 5 replicas?
+
 type Client struct {
-	ServerAddresses  []string
 	client_id        int
 	operation_cnt    int
 	conn             net.Conn
@@ -50,34 +54,43 @@ func NewClient(id int, serverAddresses []string) (*Client, error) {
 	return &client, nil
 }
 
-// func (c *Client) handleConnection() {
-// 	rw := bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-// 	for {
-// 		msg, err := rw.ReadString('\n')
-// 		if err != nil {
-// 			if err != io.EOF {
-// 				fmt.Println(err)
-// 			}
-// 			return
-// 		}
-// 		fmt.Println(msg)
-// 	}
-// }
+func (c *Client) callOneReplica(cli *rpc.Client, op operation, wg *sync.WaitGroup, results chan Message) {
+	defer wg.Done()
+	request := Message{
+		Type:        MsgPropose,
+		OperationID: c.operation_cnt,
+		Op:          &op,
+	}
+	reply := Message{}
+	cli.Call("Replica.handleOperation", request, &reply)
+	results <- reply
+}
 
 func (c *Client) operationProcess(op operation) {
 	// send to server
+	results := make(chan Message, len(c.allReplicas))
+	var wg sync.WaitGroup
 	for _, cli := range c.allReplicas {
-		request := Message{
-			Type:        MsgPropose,
-			OperationID: c.operation_cnt,
-			Op:          &op,
-		}
-		reply := Message{}
-		cli.Call("Replica.handleOperation", request, &reply)
+		wg.Add(1)
+		go c.callOneReplica(cli, op, &wg, results)
 	}
 	// wait for reply
-
+	wg.Wait()
+	close(results)
 	// send back to client
+	all_results := make([]*result, len(c.allReplicas))
+	i := 0
+	for res := range results {
+		// do something
+		if res.Type == MsgReply {
+			// do something
+			op_result := res.Result
+			all_results[i] = op_result
+		} else {
+			fmt.Println("Error: ", res)
+		}
+		i++
+	}
 }
 
 func (c *Client) InvokeInconsistent(operation) error {
