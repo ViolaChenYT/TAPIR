@@ -1,3 +1,0 @@
-[submodule "go-ycsb"]
-	path = go-ycsb
-	url = https://github.com/pingcap/go-ycsb.git
