@@ -1,42 +1,47 @@
 package tapir
 
 import (
-	"bufio" //
-	"fmt"
-	"net"
-	"net/rpc"
-	"time"
-	"IR/ir_client"
+	//
+
+	"log"
+
+	"github.com/ViolaChenYT/TAPIR/IR"
 )
+
+const QUORUM_SIZE = 3 // TODO: change
 
 // TapirClientImpl is an implementation of the TapirClient interface
 type TapirClientImpl struct {
 	// Unique ID for this client
-	int client_id;
+	client_id int
 
 	// Ongoing transaction ID
-	int t_id;
+	t_id int
 
-	// Buffered transaction 
-	Transaction txn;
+	// Buffered transaction
+	txn *Transaction
 
 	// IR protocol client
-	IR.Client ir_client;
+	ir_client *IR.Client
 
 	// Closet replica for read ops
-	int replica_id;
+	replica_id int
 }
 
 func NewClient(id int, closest_replica int) (*TapirClientImpl, error) {
 	client := TapirClientImpl{
-		client_id:        id,
-		t_id:              0, // TODO: change
-		replica_id:       closest_replica
+		client_id:  id,
+		t_id:       0, // TODO: change
+		replica_id: closest_replica,
 	}
 
 	// Create replica proxy
-	client.ir_client = IR.NewClient();
-
+	cl, err := IR.NewClient(id, []string{"8080"})
+	if err != nil {
+		log.Panicf("Error creating IR client: %v", err)
+		return nil, err
+	}
+	client.ir_client = cl
 	// Run the transport in a new thread
 	go client.run_client()
 
@@ -52,7 +57,7 @@ func (c *TapirClientImpl) Begin() {
 	// TODO: Implement a lock if previous transaction has not completed
 	c.t_id++
 
-	// Create a transaction 
+	// Create a transaction
 	c.txn = NewTransaction(c.t_id)
 }
 
@@ -62,20 +67,21 @@ func (c *TapirClientImpl) Read(key string) (string, error) {
 		return val, nil
 	}
 	// If the transaction has already read key, it returns a cached copy
-	if (val, timestamp) ok := c.txn.GetReadSet()[key]; ok {
+	readSet, timeset := c.txn.GetReadSet()
+	if val, ok := readSet[key]; ok {
 		return val, nil
 	}
+	timestamp := timeset[key]
 	// Otherwise, the client sends Read(key) to the replica
-	// TODO: send request to read from closest replica 
+	// TODO: send request to read from closest replica
 	// c.ir_client.InvokeUnlogged(c.closest_replica)
 
 	// On response, client puts (key, version) into the transaction's read set, and returns object to the application
-	val, timestamp = "", time.Time{} // Placeholders
+	val, timestamp := "", timestamp // Placeholders
 
 	c.txn.AddReadSet(key, val, timestamp)
 	return val, nil
 }
-
 
 func (c *TapirClientImpl) Write(key string, value string) error {
 	// Client buffers key and value in the write set until commit and returns immediately
@@ -85,18 +91,20 @@ func (c *TapirClientImpl) Write(key string, value string) error {
 	return nil
 }
 
-
 func (c *TapirClientImpl) Commit() bool {
 	// Client selects a proposed timestamp (local_time, client_id)
-	timestamp = (time.Time(), c.client_id)
+	// timestamp := NewTimestamp(c.client_id)
 	// Client invokes Prepare(tx, timestamp) as an IR consensus operation.
-	reply = c.ir_client.InvokeConsensus(c.decide) // pass decide function 
-
-	if reply.result == PREPARE_OK {
+	reply, err := c.ir_client.InvokeConsensus(c.decide) // pass decide function
+	if err != nil {
+		log.Panicf("Error invoking consensus: %v", err)
+		return false
+	}
+	if reply.State == IR.PREPARE_OK {
 		// Commit to all replicas
 		c.ir_client.InvokeInconsistent() // TODO: how to evoke Commit() on replicas?
 		return true
-	} 
+	}
 
 	// TODO: handle retry
 
@@ -105,46 +113,53 @@ func (c *TapirClientImpl) Commit() bool {
 	return false
 }
 
-
 func (c *TapirClientImpl) Abort() {
 	// TODO: evoke abort through ir_client
 	c.ir_client.InvokeInconsistent()
 }
 
+func (c *TapirClientImpl) maxTime(t1 *Timestamp, t2 *Timestamp) *Timestamp {
+	if t1.timestamp.Before(t2.timestamp) {
+		return t2
+	} else {
+		return t1
+	}
+}
 
 /** IR support method: TAPIR decide algorithm */
-func (c *TapirClientImpl) decide(results Result[]) {
-	// Merges inconsistent Prepare results from replicas into a single result 
-	int ok_count = 0
-	int abstain_count = 0
-	time.Time max_retry_ts = 0;
+func (c *TapirClientImpl) decide(results []*IR.Result) PrepareResult {
+	// Merges inconsistent Prepare results from replicas into a single result
+	ok_count := 0
+	abstain_count := 0
+	var max_retry_ts *Timestamp = nil
 
-	for result := range results {
-		if result == PREPARE_OK {
+	for _, result_struct := range results {
+		result := result_struct.State
+		if result == IR.PREPARE_OK {
 			ok_count++
 		}
-		if result == ABORT {
-			return ABORT
+		if result == IR.ABORT {
+			return NewPrepareResult(ABORT)
 		}
-		if result == ABSTAIN {
+		if result == IR.ABSTAIN {
 			abstain_count++
 		}
-		if result == RETRY {
-			max_retry_ts = max(max_retry_ts, result.timestamp)
+		if result == IR.RETRY {
+			max_retry_ts = c.maxTime(max_retry_ts, result.time)
 		}
 	}
 
 	if ok_count > QUORUM_SIZE {
-		return PREPARE_OK
+		return NewPrepareResult(PREPARE_OK)
 	}
 
 	if abstain_count > QUORUM_SIZE {
-		return ABORT
+		return NewPrepareResult(ABORT)
 	}
 
-	if max_retry_ts {
-		return RETRY, max_retry_ts 
+	if max_retry_ts != nil {
+		return CreateRetry(*max_retry_ts)
 	}
 
-	return ABORT
+	return NewPrepareResult(ABORT)
 }

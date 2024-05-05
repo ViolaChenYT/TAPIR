@@ -13,6 +13,14 @@ import (
 const ( // number of replicas that can be down at any one point
 	f = 2 // seems the math tally up nicer
 ) // total 2f + 1 = 5 replicas?
+type PrepareState int
+
+const (
+	PREPARE_OK PrepareState = iota
+	ABSTAIN
+	ABORT
+	RETRY
+)
 
 type Client struct {
 	client_id        int
@@ -34,6 +42,7 @@ type Result struct {
 	op_type string
 	key     string
 	value   string
+	State   PrepareState
 }
 
 func NewClient(id int, serverAddresses []string) (*Client, error) {

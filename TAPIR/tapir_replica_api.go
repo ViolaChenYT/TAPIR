@@ -4,7 +4,7 @@ package tapir
 type TapirReplica interface {
 
 	// Begin a transaction
-	Prepare(txn Transaction, timestamp Timestamp) (Result, Timestamp, error)
+	Prepare(txn Transaction, timestamp Timestamp) (PrepareResult, error)
 
 	// Read the value corresponding to key, return value and version
 	Read(key string) (string, Timestamp, error)
@@ -13,5 +13,5 @@ type TapirReplica interface {
 	Commit(txn Transaction, timestamp Timestamp) error
 
 	// Abort the transaction
-	Abort(txn Transaction, timestamp Timestamp) error
+	Abort(txn Transaction) error
 }

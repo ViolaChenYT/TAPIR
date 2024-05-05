@@ -1,6 +1,6 @@
 package tapir
 
-import "time"
+// import "time"
 
 // TapirClient represents a client for interacting with the Tapir protocol
 type TapirClient interface {

@@ -1,17 +1,19 @@
+package tapir
+
 import (
 	"time"
 )
 
 type Timestamp struct {
-	timestamp time.Time
-	id        int
+	Timestamp time.Time
+	ID        int
 }
 
 // NewTimestamp creates a new Timestamp instance
 func NewTimestamp(client_id int) *Timestamp {
 	return &Timestamp{
-		timestamp:  time.Time{},
-		id: client_id,
+		Timestamp: time.Now(),
+		ID:        client_id,
 	}
 }
 
@@ -27,14 +29,14 @@ func (t Timestamp) GreaterThan(other Timestamp) bool {
 	if t.timestamp == other.timestamp {
 		return t.id > other.id
 	}
-	return t.timestamp > other.timestamp
+	return t.timestamp.After(other.timestamp)
 }
 
 func (t Timestamp) LessThan(other Timestamp) bool {
 	if t.timestamp == other.timestamp {
 		return t.id < other.id
 	}
-	return t.timestamp < other.timestamp
+	return t.timestamp.Before(other.timestamp)
 }
 
 // Helpers
