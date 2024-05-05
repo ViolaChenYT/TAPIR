@@ -11,8 +11,7 @@ import (
 type MsgType int
 
 const (
-	MsgConnect MsgType = iota // Sent by clients to make a connection w/ the server.
-	MsgPropose
+	MsgPropose MsgType = iota // Sent by clients to make a connection w/ the server.
 	MsgReply
 	MsgFinalize
 	MsgConfirm
@@ -26,18 +25,11 @@ type Message struct {
 	Size        int     // Size of the payload.
 	Checksum    uint16  // Message checksum.
 	Payload     []byte  // Data message payload.
-	Result      *result
-	Op          *operation
+	Result      *Result
+	Op          *Operation
 }
 
-// NewConnect returns a new connect message.
-func NewConnect(initialSeqNum int) *Message {
-	return &Message{
-		Type: MsgConnect,
-	}
-}
-
-func NewPropose(opID int, op *operation) *Message {
+func NewPropose(opID int, op *Operation) *Message {
 	return &Message{
 		Type:        MsgPropose,
 		OperationID: opID,
@@ -45,7 +37,7 @@ func NewPropose(opID int, op *operation) *Message {
 	}
 }
 
-func NewReply(opID int, res *result) *Message {
+func NewReply(opID int, res *Result) *Message {
 	return &Message{
 		Type:        MsgReply,
 		OperationID: opID,
@@ -53,7 +45,7 @@ func NewReply(opID int, res *result) *Message {
 	}
 }
 
-func NewFinalize(opID int, res *result) *Message {
+func NewFinalize(opID int, res *Result) *Message {
 	return &Message{
 		Type:        MsgFinalize,
 		OperationID: opID,
@@ -115,8 +107,6 @@ func checkError(err error) {
 func (m *Message) String() string {
 	var name, payload, checksum string
 	switch m.Type {
-	case MsgConnect:
-		name = "Connect"
 	case MsgPropose:
 		name = "Propose"
 		checksum = " " + strconv.Itoa(int(m.Checksum))

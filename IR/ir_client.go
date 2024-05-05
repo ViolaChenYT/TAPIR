@@ -1,8 +1,9 @@
 package IR
 
 import (
-	"bufio" //
+	//
 	"fmt"
+	"log"
 	"net"
 	"net/rpc"
 	"sync"
@@ -22,14 +23,14 @@ type Client struct {
 	replicaAddresses []string
 }
 
-type operation struct {
+type Operation struct {
 	op_type   string
 	key       string
 	value     string
 	timestamp time.Time
 }
 
-type result struct {
+type Result struct {
 	op_type string
 	key     string
 	value   string
@@ -44,7 +45,10 @@ func NewClient(id int, serverAddresses []string) (*Client, error) {
 		allReplicas:      make([]*rpc.Client, len(serverAddresses)),
 	}
 	for i, addr := range serverAddresses {
-		cli, err := rpc.DialHTTP("tcp", addr)
+		specific_str := "localhost:" + addr
+		log.Println("client trying Connecting to", specific_str)
+		cli, err := rpc.Dial("tcp", specific_str)
+		fmt.Println(addr, " connected")
 		checkError(err)
 		client.allReplicas[i] = cli
 	}
@@ -54,7 +58,7 @@ func NewClient(id int, serverAddresses []string) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) callOneReplica(cli *rpc.Client, op operation, wg *sync.WaitGroup, results chan Message) {
+func (c *Client) callOneReplica(cli *rpc.Client, op Operation, wg *sync.WaitGroup, results chan Message) {
 	defer wg.Done()
 	request := Message{
 		Type:        MsgPropose,
@@ -62,11 +66,11 @@ func (c *Client) callOneReplica(cli *rpc.Client, op operation, wg *sync.WaitGrou
 		Op:          &op,
 	}
 	reply := Message{}
-	cli.Call("Replica.handleOperation", request, &reply)
+	cli.Call("Replica.HandleOperation", request, &reply)
 	results <- reply
 }
 
-func (c *Client) operationProcess(op operation) {
+func (c *Client) operationProcess(op Operation) {
 	// send to server
 	results := make(chan Message, len(c.allReplicas))
 	var wg sync.WaitGroup
@@ -78,7 +82,7 @@ func (c *Client) operationProcess(op operation) {
 	wg.Wait()
 	close(results)
 	// send back to client
-	all_results := make([]*result, len(c.allReplicas))
+	all_results := make([]*Result, len(c.allReplicas))
 	i := 0
 	for res := range results {
 		// do something
@@ -91,44 +95,8 @@ func (c *Client) operationProcess(op operation) {
 		}
 		i++
 	}
-}
-
-func (c *Client) InvokeInconsistent(operation) error {
-	defer c.conn.Close()
-	rw := bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-	for {
-		_, err := rw.WriteString(fmt.Sprintf("Inconsistent! %d\n", c.operation_cnt))
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		err = rw.Flush()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		c.operation_cnt++
-	}
-}
-
-func (c *Client) InvokeConsensus(operation, []result) (result, error) {
-	// use c.decide to pick the result
-	/// ignore below
-	defer c.conn.Close()
-	rw := bufio.NewReadWriter(bufio.NewReader(c.conn), bufio.NewWriter(c.conn))
-	for {
-		_, err := rw.WriteString(fmt.Sprintf("Consensus! %d\n", c.operation_cnt))
-		if err != nil {
-			fmt.Println(err)
-			return result{}, err
-		}
-		err = rw.Flush()
-		if err != nil {
-			fmt.Println(err)
-			return result{}, err
-		}
-		c.operation_cnt++
-	}
+	c.operation_cnt++
+	// what about slow path?
 }
 
 func (c *Client) Close() {

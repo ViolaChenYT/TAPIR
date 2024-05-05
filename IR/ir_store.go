@@ -3,6 +3,7 @@ package IR
 import (
 	//
 	"fmt"
+	"log"
 	"net"
 	"net/rpc"
 )
@@ -17,22 +18,27 @@ const ( // state of operations
 	FINALIZED = iota
 )
 
+const ( // state of reply)
+	REPLY_OK   = iota
+	REPLY_FAIL = iota
+)
+
 type Replica struct {
 	replica_id int
 	partition  int // partition number
 	state      int // state of the replica (NORMAL or VIEWCHANGING)
 	listener   net.Listener
 	close      chan bool
-	record     *record
+	record     *Record
 }
 
-type record struct {
-	values map[operation]int
+type Record struct {
+	values map[Operation]int
 }
 
-func emptyRecord() *record {
-	return &record{
-		values: make(map[operation]int),
+func emptyRecord() *Record {
+	return &Record{
+		values: make(map[Operation]int),
 	}
 }
 
@@ -43,57 +49,36 @@ func NewReplica(id int) (*Replica, error) {
 		close:      make(chan bool),
 		record:     emptyRecord(),
 	}
-	base := 8080 // port to listen on
-	rpc.Register(replica)
-	// rpc.HandleHTTP()
-	ln, err := net.Listen("tcp", string(base+id))
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	replica.listener = ln
-	go rpc.Accept(ln)
-
+	go replica.Listen(id)
 	return &replica, nil
 }
 
+func (r *Replica) Listen(base int) {
+	rpc.Register(r)
+	ln, err := net.Listen("tcp", "localhost:"+fmt.Sprint(base))
+	checkError(err)
+	log.Println("Replica localhost:"+fmt.Sprint(base), "listening")
+	r.listener = ln
+	go rpc.Accept(ln)
+}
+
 // the rpc function
-func (r *Replica) handleOperation(request Message, reply *Message) error {
+func (r *Replica) HandleOperation(request Message, reply *Message) error {
+	fmt.Println("Replica ", r.replica_id, " received operation ", request.OperationID)
+	// write operation id and op to its record as tentative and responds to client with <reply,id>
+	if request.Type == MsgPropose {
+		return nil
+	} else if request.Type == MsgFinalize {
+		return nil
+	} else if request.Type == MsgConfirm {
+		return nil
+	} else { // MsgReply
+	}
 	return nil
 }
 
-// func (r *Replica) handleConnection(conn net.Conn) {
-// 	defer conn.Close()
-// 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
-// 	for {
-// 		msg, err := rw.ReadString('\n')
-// 		if err != nil {
-// 			if err != io.EOF {
-// 				fmt.Println(err)
-// 			}
-// 			return
-// 		}
-// 		fmt.Println(msg)
-// 	}
-// }
-
-func (r *Replica) ExecInconsistent(operation) error {
-	return nil
-}
-
-func (r *Replica) ExecConsensus(operation) (result, error) {
-	return result{}, nil
-}
-
-func (r *Replica) Sync() error {
-	return nil
-}
-
-// func (r *Replica) Merge(d, u) (record, error) {
-// 	return record{}, nil
-// }
-
-func (r *Replica) Close() {
+func (r *Replica) Close() error {
 	r.listener.Close()
 	r.close <- true
+	return nil
 }
