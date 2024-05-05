@@ -1,25 +1,25 @@
-package tapir
+package common
 
 // Transaction represents a transaction with read and write sets
 type Transaction struct {
-	id       int
+	ID       int
 	readSet  map[string]string
-	readTime map[string]Timestamp
+	readTime map[string]*Timestamp
 	writeSet map[string]string
 }
 
 // NewTransaction creates a new Transaction instance
 func NewTransaction(id int) *Transaction {
 	return &Transaction{
-		id:       id,
+		ID:       id,
 		readSet:  make(map[string]string), // value and read time from store
-		readTime: make(map[string]Timestamp),
+		readTime: make(map[string]*Timestamp),
 		writeSet: make(map[string]string),
 	}
 }
 
 // GetReadSet returns the read set of the transaction
-func (t *Transaction) GetReadSet() (map[string]string, map[string]Timestamp) {
+func (t *Transaction) GetReadSet() (map[string]string, map[string]*Timestamp) {
 	return t.readSet, t.readTime
 }
 
@@ -29,7 +29,7 @@ func (t *Transaction) GetWriteSet() map[string]string {
 }
 
 // AddReadSet adds an entry to the read set of the transaction
-func (t *Transaction) AddReadSet(key string, value string, readTime Timestamp) {
+func (t *Transaction) AddReadSet(key string, value string, readTime *Timestamp) {
 	t.readSet[key] = value
 	t.readTime[key] = readTime
 }
