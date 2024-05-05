@@ -27,7 +27,7 @@ type TapirClientImpl struct {
 	replica_id int
 }
 
-func NewClient(id int, closest_replica int) (*TapirClientImpl, error) {
+func NewClient(id int, closest_replica int) (TapirClient, error) {
 	client := TapirClientImpl{
 		client_id:  id,
 		t_id:       0, // TODO: change

@@ -2,6 +2,10 @@
 
 package common
 
+import (
+	"fmt"
+)
+
 type OpType int
 
 const (
@@ -10,6 +14,90 @@ const (
 	OP_COMMIT
 	OP_ABORT
 )
+
+type MsgType int
+
+const (
+	MsgPropose MsgType = iota // Sent by clients to make a connection w/ the server.
+	MsgReply
+	MsgFinalize
+	MsgConfirm
+)
+
+type PrepareState int
+
+const (
+	PREPARE_OK PrepareState = iota
+	ABSTAIN
+	ABORT
+	RETRY
+)
+
+// type Operation struct {
+// 	op_type   OperationType
+// 	key       string
+// 	value     string // optional
+// 	timestamp time.Time
+// }
+
+// type Result struct {
+// 	op_type string
+// 	key     string
+// 	value   string
+// 	State   PrepareState
+// }
+
+// Message represents a message used by the LSP protocol.
+type Message struct {
+	Type        MsgType // One of the message types listed above.
+	ConnID      int     // Unique client-server connection ID.
+	OperationID int     // operation ID
+	Response    *Response
+	Request     *Request
+}
+
+func NewPropose(opID int, op *Request) Message {
+	return Message{
+		Type:        MsgPropose,
+		OperationID: opID,
+		Request:     op,
+	}
+}
+
+func NewReply(opID int, res *Response) Message {
+	return Message{
+		Type:        MsgReply,
+		OperationID: opID,
+		Response:    res,
+	}
+}
+
+func NewFinalize(opID int) Message {
+	return Message{
+		Type:        MsgFinalize,
+		OperationID: opID,
+	}
+}
+func Finalize(opID int, res *Response) Message {
+	return Message{
+		Type:        MsgFinalize,
+		OperationID: opID,
+		Response:    res,
+	}
+}
+
+func NewConfirm(opID int) *Message {
+	return &Message{
+		Type:        MsgConfirm,
+		OperationID: opID,
+	}
+}
+
+func CheckError(err error) {
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+}
 
 // GetMessage represents the GetMessage message
 type GetMessage struct {

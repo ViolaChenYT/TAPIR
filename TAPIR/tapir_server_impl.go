@@ -3,18 +3,21 @@ package tapir
 import (
 	"errors"
 
+	IR "github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
 // Server represents a Tapir server
 type TapirServerImpl struct {
 	store TapirReplica
+	id    int
 }
 
 // NewServer creates a new instance of Server
-func NewTapirServer() TapirServer {
+func NewTapirServer(id int) IR.Replica {
 	return &TapirServerImpl{
-		store: NewReplica(),
+		store: NewReplica(id),
+		id:    id,
 	}
 }
 

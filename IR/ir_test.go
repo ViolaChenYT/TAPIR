@@ -1,27 +1,6 @@
 package IR
 
-import (
-	"fmt"
-	"log"
-	"testing"
-	"time"
-)
-
 // test adding and initiating servers and replicas
-func TestSetup(t *testing.T) {
-	port := 55209
-	replica, err := NewReplica(port)
-	if err != nil {
-		t.Fatal("Server failed to start:", err)
-	}
-	log.Println("Server started", replica.replica_id)
-	time.Sleep(time.Second)
-	client, err := NewClient(1, []string{fmt.Sprintf("%d", port)})
-	if err != nil {
-		t.Fatal("Failed to dial server:", err)
-	}
-	log.Println("ok", client)
-}
 
 // func TestRPCConnection(t *testing.T) {
 // 	// Setup the server

@@ -17,6 +17,13 @@ func NewTimestamp(client_id int) *Timestamp {
 	}
 }
 
+func NewCustomTimestamp(client_id int, timestamp time.Time) *Timestamp {
+	return &Timestamp{
+		timestamp: timestamp,
+		id:        client_id,
+	}
+}
+
 func (t *Timestamp) Equals(other *Timestamp) bool {
 	return t.timestamp == other.timestamp && t.id == other.id
 }

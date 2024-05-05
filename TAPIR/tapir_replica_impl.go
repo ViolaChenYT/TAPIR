@@ -1,6 +1,12 @@
 package tapir
 
 import (
+	"errors"
+	"fmt"
+	"log"
+	"net"
+	"net/rpc"
+
 	. "github.com/ViolaChenYT/TAPIR/TAPIR/versionstore"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
@@ -14,13 +20,72 @@ type TimedTransaction struct {
 type TapirReplicaImpl struct {
 	store    VersionedKVStore          // versioned data store
 	prepared map[int]*TimedTransaction // list of transactions replica is prepared to commit
+	ID       int                       // same as corredponding tapir server ID, may change
+	record   *Record
+	listener net.Listener
+	close    chan bool
 }
 
-func NewReplica() TapirReplica {
-	return &TapirReplicaImpl{
+func NewReplica(id int) TapirReplica {
+	r := TapirReplicaImpl{
 		store:    NewVersionedKVStore(),
 		prepared: make(map[int]*TimedTransaction),
+		ID:       id,
+		record:   emptyRecord(),
+		close:    make(chan bool),
 	}
+	go r.Listen(id)
+	return &r
+}
+
+const ( // state of operations
+	TENTATIVE = iota
+	FINALIZED = iota
+)
+
+const ( // state of reply)
+	REPLY_OK   = iota
+	REPLY_FAIL = iota
+)
+
+type Record struct {
+	values map[Request]int
+}
+
+func emptyRecord() *Record {
+	return &Record{
+		values: make(map[Request]int),
+	}
+}
+
+func (r *TapirReplicaImpl) Listen(base int) {
+	rpc.Register(r)
+	ln, err := net.Listen("tcp", "localhost:"+fmt.Sprint(base))
+	CheckError(err)
+	log.Println("Replica localhost:"+fmt.Sprint(base), "listening")
+	r.listener = ln
+	go rpc.Accept(ln)
+}
+
+// the rpc function
+func (r *TapirReplicaImpl) HandleOperation(request Message, reply *Message) error {
+	log.Panicln("HandleOperation")
+	// write operation id and op to its record as tentative and responds to client with <reply,id>
+	if request.Type == MsgPropose {
+		// write id and op to its record as tentative
+		return nil
+	} else if request.Type == MsgFinalize {
+		// write id and op to its record as finalized
+		return nil
+	} else { // MsgReply
+		return fmt.Errorf("replica shouldn't get message reply or confirm")
+	}
+}
+
+func (r *TapirReplicaImpl) Close() error {
+	r.listener.Close()
+	r.close <- true
+	return nil
 }
 
 func (r *TapirReplicaImpl) Prepare(txn *Transaction, timestamp *Timestamp) (*Response, error) {
@@ -41,8 +106,12 @@ func (r *TapirReplicaImpl) Prepare(txn *Transaction, timestamp *Timestamp) (*Res
 
 func (r *TapirReplicaImpl) Read(key string) (string, *Timestamp, error) {
 	// Returns value and version, where version is the timestamp of the transaction that wrote that version
-
-	return "", NewTimestamp(0), nil
+	versionedVal, ok := r.store.Get(key)
+	if ok {
+		return versionedVal.Value, versionedVal.WriteTime, nil
+	} else {
+		return "", nil, errors.New(fmt.Sprintf("Key %s not exist in replica %d.", key, r.ID))
+	}
 }
 
 func (r *TapirReplicaImpl) Commit(txnID int, timestamp *Timestamp) error {

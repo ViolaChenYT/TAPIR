@@ -1,11 +1,11 @@
-package tapir
+package IR
 
 import (
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
-// TapirServer represents a replica server interfacing the TAPIR and IR protocol
-type TapirServer interface {
+// Implement IR Replica functions
+type Replica interface {
 	// Invoke inconsistent operation (commit, abort), no return value
 	ExecInconsistent(op *Request) error
 

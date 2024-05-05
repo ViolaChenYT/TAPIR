@@ -1,17 +1,21 @@
-package tapir
+package tapirdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/pingcap/go-ycsb/pkg/ycsb"
+
+	tapir "github.com/ViolaChenYT/TAPIR/TAPIR"
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 // TapirDB is a dummy implementation of the DB interface.
-type TapirDB struct{}
-
-type TapirCreator struct {
+type TapirDB struct {
+	app *tapir.TapirApp
 }
+
+type TapirCreator struct{}
 
 func (c TapirCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(TapirDB)
@@ -20,7 +24,14 @@ func (c TapirCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 // CreateTapirDB creates a new instance of the TapirDB.
 func CreateTapirDB() *TapirDB {
-	return &TapirDB{}
+	client, err := tapir.NewClient(0, 0)
+	if err != nil {
+		fmt.Println("Error:", err.Error())
+		return nil
+	}
+	return &TapirDB{
+		client: client,
+	}
 }
 
 // Close closes the database layer.
@@ -43,13 +54,13 @@ func (d *TapirDB) CleanupThread(ctx context.Context) {
 // Read reads a record from the database and returns a map of each field/value pair.
 func (d *TapirDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	fmt.Printf("Reading record with key %s from table %s\n", key, table)
+	d.client.Read(key)
 	return nil, nil
 }
 
 // Scan scans records from the database.
 func (d *TapirDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	fmt.Printf("Scanning records from table %s starting from key %s, count: %d\n", table, startKey, count)
-	return nil, nil
+	return nil, errors.New("Scan operation not implemented!")
 }
 
 // Update updates a record in the database.
@@ -66,8 +77,7 @@ func (d *TapirDB) Insert(ctx context.Context, table string, key string, values m
 
 // Delete deletes a record from the database.
 func (d *TapirDB) Delete(ctx context.Context, table string, key string) error {
-	fmt.Printf("Deleting record with key %s from table %s\n", key, table)
-	return nil
+	return errors.New("Delete operation not implemented!")
 }
 
 func (d *TapirDB) Start() error {
