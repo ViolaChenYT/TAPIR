@@ -7,11 +7,11 @@ type TimedTransaction struct {
 
 // TapirReplicaImpl represents an implementation of the TapirReplica interface
 type TapirReplicaImpl struct {
-	store    Libstore                 // versioned data store
+	store    VersionedKVStore         // versioned data store
 	prepared map[int]TimedTransaction // list of transactions replica is prepared to commit
 }
 
-func NewReplica(store Libstore) *TapirReplicaImpl {
+func NewReplica(store VersionedKVStore) *TapirReplicaImpl {
 	return &TapirReplicaImpl{
 		store:    store,
 		prepared: make(map[int]TimedTransaction),
@@ -45,15 +45,16 @@ func (r *TapirReplicaImpl) Commit(txn Transaction, timestamp Timestamp) error {
 	_, readTimes := txn.GetReadSet()
 	for key, version := range readTimes {
 		// Update version for read operations
-		r.store.commitGet(key, version, timestamp)
+		r.store.CommitGet(key, version, timestamp)
 	}
 	for key, value := range txn.GetWriteSet() {
 		// Update value and version for write operations
-		r.store.put(key, value, timestamp)
+		r.store.Put(key, value, timestamp)
 	}
 
 	// Removes the transaction from prepared list
 	delete(r.prepared, txn.id)
+	return nil
 }
 
 func (r *TapirReplicaImpl) Abort(txn Transaction) error {
@@ -71,7 +72,14 @@ func (r *TapirReplicaImpl) occCheck(txn Transaction, timestamp Timestamp) Prepar
 	readVals, readTimes := txn.GetReadSet()
 	for key := range readVals {
 		version := readTimes[key]
-		if version.LessThan(store[key].latest_version) {
+		lastVersionedVal, ok := r.store.Get(key)
+
+		if !ok {
+			// No conflict if we don't have this version
+			continue
+		}
+
+		if version.LessThan(lastVersionedVal.write_time) {
 			return NewPrepareResult(ABORT)
 		} else if len(preparedWrites[key]) > 0 && version.LessThan(minTimestamp(preparedWrites[key])) {
 			return NewPrepareResult(ABSTAIN)
@@ -79,10 +87,17 @@ func (r *TapirReplicaImpl) occCheck(txn Transaction, timestamp Timestamp) Prepar
 	}
 
 	for key := range txn.GetWriteSet() {
+		lastRead, ok := r.store.GetLastRead(key, timestamp)
+
+		if !ok {
+			// No conflict if it has not been read
+			continue
+		}
+
 		if timestamp.LessThan(maxTimestamp(preparedReads[key])) {
 			return CreateRetry(maxTimestamp(preparedReads[key]))
-		} else if timestamp.LessThan(store[key].latest_version) {
-			return CreateRetry(store[key].latest_version)
+		} else if timestamp.LessThan(lastRead) {
+			return CreateRetry(lastRead)
 		}
 	}
 

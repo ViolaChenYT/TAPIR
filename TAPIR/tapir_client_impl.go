@@ -75,6 +75,7 @@ func (c *TapirClientImpl) Read(key string) (string, error) {
 	// Otherwise, the client sends Read(key) to the replica
 	// TODO: send request to read from closest replica
 	// c.ir_client.InvokeUnlogged(c.closest_replica)
+	// c.ir_client.
 
 	// On response, client puts (key, version) into the transaction's read set, and returns object to the application
 	val, timestamp := "", timestamp // Placeholders
@@ -115,15 +116,8 @@ func (c *TapirClientImpl) Commit() bool {
 
 func (c *TapirClientImpl) Abort() {
 	// TODO: evoke abort through ir_client
-	c.ir_client.InvokeInconsistent()
-}
-
-func (c *TapirClientImpl) maxTime(t1 *Timestamp, t2 *Timestamp) *Timestamp {
-	if t1.timestamp.Before(t2.timestamp) {
-		return t2
-	} else {
-		return t1
-	}
+	current_op := IR.Operation{} // Placeholder, should be the current operation
+	c.ir_client.InvokeInconsistent(current_op)
 }
 
 /** IR support method: TAPIR decide algorithm */
@@ -145,7 +139,7 @@ func (c *TapirClientImpl) decide(results []*IR.Result) PrepareResult {
 			abstain_count++
 		}
 		if result == IR.RETRY {
-			max_retry_ts = c.maxTime(max_retry_ts, result.time)
+			max_retry_ts = laterTime(max_retry_ts, NewTimestamp(c.client_id))
 		}
 	}
 

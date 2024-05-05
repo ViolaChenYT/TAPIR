@@ -5,6 +5,7 @@ package IR
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // MsgType is an integer code describing an LSP message type.
@@ -16,6 +17,37 @@ const (
 	MsgFinalize
 	MsgConfirm
 )
+
+type PrepareState int
+
+const (
+	PREPARE_OK PrepareState = iota
+	ABSTAIN
+	ABORT
+	RETRY
+)
+
+type OperationType int
+
+const (
+	Get OperationType = iota
+	Put
+	Delete
+)
+
+type Operation struct {
+	op_type   OperationType
+	key       string
+	value     string
+	timestamp time.Time
+}
+
+type Result struct {
+	op_type string
+	key     string
+	value   string
+	State   PrepareState
+}
 
 // Message represents a message used by the LSP protocol.
 type Message struct {

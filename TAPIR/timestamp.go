@@ -5,15 +5,15 @@ import (
 )
 
 type Timestamp struct {
-	Timestamp time.Time
-	ID        int
+	timestamp time.Time
+	id        int
 }
 
 // NewTimestamp creates a new Timestamp instance
 func NewTimestamp(client_id int) *Timestamp {
 	return &Timestamp{
-		Timestamp: time.Now(),
-		ID:        client_id,
+		timestamp: time.Now(),
+		id:        client_id,
 	}
 }
 
@@ -37,6 +37,21 @@ func (t Timestamp) LessThan(other Timestamp) bool {
 		return t.id < other.id
 	}
 	return t.timestamp.Before(other.timestamp)
+}
+
+func (t Timestamp) LessThanOrEqualTo(other Timestamp) bool {
+	if t.timestamp == other.timestamp {
+		return t.id <= other.id
+	}
+	return !t.timestamp.After(other.timestamp)
+}
+
+func laterTime(t1 *Timestamp, t2 *Timestamp) *Timestamp {
+	if t1.timestamp.Before(t2.timestamp) {
+		return t2
+	} else {
+		return t1
+	}
 }
 
 // Helpers

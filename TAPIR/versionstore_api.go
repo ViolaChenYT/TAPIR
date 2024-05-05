@@ -1,11 +1,7 @@
-package versionstore
-
-import (
-	tapir "github.com/ViolaChenYT/TAPIR"
-)
+package tapir
 
 type VersionedValue struct {
-	write_time tapir.Timestamp
+	write_time Timestamp
 	value      string
 }
 
@@ -15,11 +11,14 @@ type VersionedKVStore interface {
 	Get(key string) (VersionedValue, bool)
 
 	// Write the given key-value pair to the store
-	Put(key string, value string, time tapir.Timestamp)
+	Put(key string, value string, time Timestamp)
 
 	// Commit a read by udpating the timestamp of the latest read transaction for the version of the key that the transaction read
-	CommitGet(key string, readTime tapir.Timestamp, commitTime Timestamp)
+	CommitGet(key string, readTime Timestamp, commitTime Timestamp)
 
 	// Get the last read for the write valid at the given timestamp
 	GetLastRead(key string, time Timestamp) (Timestamp, bool)
+
+	// Get the valid time frame for the write valid at the given timestamp
+	GetRange(key string, time Timestamp) (Timestamp, Timestamp, bool)
 }

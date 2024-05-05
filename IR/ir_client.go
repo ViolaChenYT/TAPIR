@@ -7,20 +7,11 @@ import (
 	"net"
 	"net/rpc"
 	"sync"
-	"time"
 )
 
 const ( // number of replicas that can be down at any one point
 	f = 2 // seems the math tally up nicer
 ) // total 2f + 1 = 5 replicas?
-type PrepareState int
-
-const (
-	PREPARE_OK PrepareState = iota
-	ABSTAIN
-	ABORT
-	RETRY
-)
 
 type Client struct {
 	client_id        int
@@ -29,20 +20,6 @@ type Client struct {
 	close            chan bool // close channel
 	allReplicas      []*rpc.Client
 	replicaAddresses []string
-}
-
-type Operation struct {
-	op_type   string
-	key       string
-	value     string
-	timestamp time.Time
-}
-
-type Result struct {
-	op_type string
-	key     string
-	value   string
-	State   PrepareState
 }
 
 func NewClient(id int, serverAddresses []string) (*Client, error) {
@@ -57,13 +34,10 @@ func NewClient(id int, serverAddresses []string) (*Client, error) {
 		specific_str := "localhost:" + addr
 		log.Println("client trying Connecting to", specific_str)
 		cli, err := rpc.Dial("tcp", specific_str)
-		fmt.Println(addr, " connected")
+		log.Println(addr, " connected")
 		checkError(err)
 		client.allReplicas[i] = cli
 	}
-	// newConnectMsg, _ := json.marshal(NewConnect(id))
-	// client.rpcclient.Call("Replica.Connect", newConnectMsg, nil)
-	// go client.handleConnection()
 	return &client, nil
 }
 
