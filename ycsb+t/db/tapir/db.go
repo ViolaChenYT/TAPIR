@@ -24,7 +24,7 @@ func (c TapirCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 // CreateTapirDB creates a new instance of the TapirDB.
 func CreateTapirDB() *TapirDB {
 	return &TapirDB{
-		app: NewTapirApp(),
+		app: tapir.NewTapirApp(),
 	}
 }
 

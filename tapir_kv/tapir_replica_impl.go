@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/rpc"
 
-	. "github.com/ViolaChenYT/TAPIR/TAPIR/versionstore"
 	. "github.com/ViolaChenYT/TAPIR/common"
+	. "github.com/ViolaChenYT/TAPIR/tapir_kv/versionstore"
 )
 
 type TimedTransaction struct {
@@ -69,10 +69,11 @@ func (r *TapirReplicaImpl) Listen(base int) {
 
 // the rpc function
 func (r *TapirReplicaImpl) HandleOperation(request Message, reply *Message) error {
-	log.Panicln("HandleOperation")
+	log.Println("Handling Operation")
 	// write operation id and op to its record as tentative and responds to client with <reply,id>
 	if request.Type == MsgPropose {
 		// write id and op to its record as tentative
+		r.ExecInconsistent(request.Request)
 		return nil
 	} else if request.Type == MsgFinalize {
 		// write id and op to its record as finalized
