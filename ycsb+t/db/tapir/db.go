@@ -10,7 +10,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
-// TapirDB is a dummy implementation of the DB interface.
 type TapirDB struct {
 	app *tapir.TapirApp
 }
@@ -24,13 +23,8 @@ func (c TapirCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 // CreateTapirDB creates a new instance of the TapirDB.
 func CreateTapirDB() *TapirDB {
-	client, err := tapir.NewClient(0, 0)
-	if err != nil {
-		fmt.Println("Error:", err.Error())
-		return nil
-	}
 	return &TapirDB{
-		client: client,
+		app: NewTapirApp(),
 	}
 }
 
@@ -54,8 +48,7 @@ func (d *TapirDB) CleanupThread(ctx context.Context) {
 // Read reads a record from the database and returns a map of each field/value pair.
 func (d *TapirDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	fmt.Printf("Reading record with key %s from table %s\n", key, table)
-	d.client.Read(key)
-	return nil, nil
+	return d.app.Read(table, key, fields)
 }
 
 // Scan scans records from the database.
@@ -66,33 +59,33 @@ func (d *TapirDB) Scan(ctx context.Context, table string, startKey string, count
 // Update updates a record in the database.
 func (d *TapirDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	fmt.Printf("Updating record with key %s in table %s\n", key, table)
-	return nil
+	return d.app.Update(table, key, values)
 }
 
 // Insert inserts a record into the database.
 func (d *TapirDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	fmt.Printf("Inserting record with key %s into table %s\n", key, table)
-	return nil
+	return d.app.Insert(table, key, values)
 }
 
 // Delete deletes a record from the database.
 func (d *TapirDB) Delete(ctx context.Context, table string, key string) error {
-	return errors.New("Delete operation not implemented!")
+	return d.app.Delete(table, key)
 }
 
 func (d *TapirDB) Start() error {
 	fmt.Printf("Starting a transaction\n")
-	return nil
+	return d.app.Start()
 }
 
 func (d *TapirDB) Commit() error {
 	fmt.Printf("Committing a transaction\n")
-	return nil
+	return d.app.Commit()
 }
 
 func (d *TapirDB) Abort() error {
 	fmt.Printf("Aborting a transaction\n")
-	return nil
+	return d.app.Abort()
 }
 
 // Register with the server
