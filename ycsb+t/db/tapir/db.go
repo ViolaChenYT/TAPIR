@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	tapir "github.com/ViolaChenYT/TAPIR/TAPIR"
+	tapir "github.com/ViolaChenYT/TAPIR"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
