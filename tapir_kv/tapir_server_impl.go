@@ -2,6 +2,10 @@ package tapir
 
 import (
 	"errors"
+	"fmt"
+	"log"
+	"net"
+	"net/rpc"
 
 	IR "github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
@@ -14,10 +18,36 @@ type TapirServerImpl struct {
 }
 
 // NewServer creates a new instance of Server
-func NewTapirServer(id int) IR.Replica {
-	return &TapirServerImpl{
+func NewTapirServer(id int, serverAddr string) IR.Replica {
+	server := TapirServerImpl{
 		store: NewReplica(id),
 		id:    id,
+	}
+	go server.Listen(serverAddr)
+	return &server
+}
+
+func (r *TapirServerImpl) Listen(serverAddr string) {
+	rpc.Register(r)
+	ln, err := net.Listen("tcp", "localhost:"+serverAddr)
+	CheckError(err)
+	log.Println("Replica", serverAddr, "listening")
+	go rpc.Accept(ln)
+}
+
+func (r *TapirServerImpl) HandleOperation(request Message, reply *Message) error {
+	log.Println("Handling Operation")
+	// write operation id and op to its record as tentative and responds to client with <reply,id>
+	if request.Type == MsgPropose {
+		// write id and op to its record as tentative
+		r.ExecInconsistent(request.Request)
+		return nil
+	} else if request.Type == MsgFinalize {
+		// write id and op to its record as finalized
+		r.ExecConsensus(request.Request)
+		return nil
+	} else { // MsgReply
+		return fmt.Errorf("replica shouldn't get message reply or confirm")
 	}
 }
 

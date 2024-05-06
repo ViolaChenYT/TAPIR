@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	IR "github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
@@ -20,6 +19,12 @@ const (
 	key2       = "ruyu"
 	val2       = "yan"
 )
+
+var replica_addresses = []string{"55209", "55210", "55211"}
+
+// testing in terminal:
+// go test -run <name of specific test>
+// eg. go test -run TestReplicaSetup
 
 // createAscendingTimes generates a slice of Timestamps with ascending timestamps
 func createAscendingTimes(count int) []*Timestamp {
@@ -89,12 +94,39 @@ func TestReplicaCommit(t *testing.T) {
 	}
 }
 
-func TestSetup(t *testing.T) {
+func TestMostBasicSetup(t *testing.T) {
 	port := 55209
-	replica := NewReplica(port)
+	// server 1: address localhost:55209
+	replica := NewTapirServer(1, fmt.Sprintf("%d", port))
 	log.Println("ok", replica)
 	time.Sleep(time.Second)
-	client, err := IR.NewClient(1, []string{fmt.Sprintf("%d", port)})
+	// client 1:
+	// now there's only 1 server
+	// closest replica port = 55209
+	// all replica = []string{"55209"}
+	client, err := NewClient(1, port, []string{fmt.Sprintf("%d", port)})
+	if err != nil {
+		t.Fatal("Failed to dial server:", err)
+	}
+	log.Println("ok", client)
+}
+
+func Test3ReplicaSetup(t *testing.T) {
+	// server 1: address localhost:55209
+	replica1 := NewTapirServer(1, replica_addresses[0])
+	time.Sleep(time.Second)
+	// server 2: address localhost:55210
+	replica2 := NewTapirServer(2, replica_addresses[1])
+	time.Sleep(time.Second)
+	// server 3: address localhost:55211
+	replica3 := NewTapirServer(3, replica_addresses[2])
+	time.Sleep(time.Second)
+	log.Println("ok", replica1, replica2, replica3)
+	// client 1:
+	// now there's 3 servers
+	// closest replica port = 55209
+	// all replica = []string{"55209", "55210", "55211"}
+	client, err := NewClient(1, 55209, replica_addresses)
 	if err != nil {
 		t.Fatal("Failed to dial server:", err)
 	}

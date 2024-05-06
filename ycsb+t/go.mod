@@ -144,7 +144,7 @@ require (
 
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
 
-require github.com/ViolaChenYT/TAPIR v0.0.0-20240506020056-0223c86a98be
+require github.com/ViolaChenYT/TAPIR v0.0.0-20240506022431-806cd7263b2d
 
 replace github.com/ViolaChenYT/TAPIR/ => ../
 

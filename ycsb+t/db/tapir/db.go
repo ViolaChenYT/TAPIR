@@ -11,7 +11,7 @@ import (
 )
 
 type TapirDB struct {
-	app *tapir.TapirApp
+	app tapir.TapirApp
 }
 
 type TapirCreator struct{}

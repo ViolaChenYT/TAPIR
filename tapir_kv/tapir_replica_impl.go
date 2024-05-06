@@ -3,9 +3,7 @@ package tapir
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
-	"net/rpc"
 
 	. "github.com/ViolaChenYT/TAPIR/common"
 	. "github.com/ViolaChenYT/TAPIR/tapir_kv/versionstore"
@@ -34,7 +32,6 @@ func NewReplica(id int) TapirReplica {
 		record:   emptyRecord(),
 		close:    make(chan bool),
 	}
-	go r.Listen(id)
 	return &r
 }
 
@@ -58,30 +55,7 @@ func emptyRecord() *Record {
 	}
 }
 
-func (r *TapirReplicaImpl) Listen(base int) {
-	rpc.Register(r)
-	ln, err := net.Listen("tcp", "localhost:"+fmt.Sprint(base))
-	CheckError(err)
-	log.Println("Replica localhost:"+fmt.Sprint(base), "listening")
-	r.listener = ln
-	go rpc.Accept(ln)
-}
-
 // the rpc function
-func (r *TapirReplicaImpl) HandleOperation(request Message, reply *Message) error {
-	log.Println("Handling Operation")
-	// write operation id and op to its record as tentative and responds to client with <reply,id>
-	if request.Type == MsgPropose {
-		// write id and op to its record as tentative
-		r.ExecInconsistent(request.Request)
-		return nil
-	} else if request.Type == MsgFinalize {
-		// write id and op to its record as finalized
-		return nil
-	} else { // MsgReply
-		return fmt.Errorf("replica shouldn't get message reply or confirm")
-	}
-}
 
 func (r *TapirReplicaImpl) Close() error {
 	r.listener.Close()

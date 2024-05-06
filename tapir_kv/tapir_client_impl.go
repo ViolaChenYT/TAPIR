@@ -27,7 +27,7 @@ type TapirClientImpl struct {
 	replica_id int
 }
 
-func NewClient(id int, closest_replica int) (TapirClient, error) {
+func NewClient(id int, closest_replica int, allReplica []string) (TapirClient, error) {
 	client := TapirClientImpl{
 		client_id:  id,
 		t_id:       0, // TODO: change
@@ -35,7 +35,7 @@ func NewClient(id int, closest_replica int) (TapirClient, error) {
 	}
 
 	// Create replica proxy
-	cl, err := IR.NewClient(id, []string{"8080"})
+	cl, err := IR.NewClient(id, allReplica)
 	if err != nil {
 		log.Panicf("Error creating IR client: %v", err)
 		return nil, err

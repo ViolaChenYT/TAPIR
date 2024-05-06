@@ -34,6 +34,10 @@ func (vs *VersionedKVStoreImpl) Put(key string, value string, time *Timestamp) {
 }
 
 func (vs *VersionedKVStoreImpl) CommitGet(key string, readTime *Timestamp, commitTime *Timestamp) {
+	// Create the <version, last_read_time> map if not exists
+	if vs.lastReads[key] == nil {
+		vs.lastReads[key] = make(map[*Timestamp]*Timestamp)
+	}
 	vs.lastReads[key][readTime] = commitTime
 }
 
