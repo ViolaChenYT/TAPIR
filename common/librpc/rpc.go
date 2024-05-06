@@ -1,7 +1,7 @@
 package librpc
 
 import (
-	"github.com/ViolaChenYT/TAPIR/IR/storagerpc"
+	"github.com/ViolaChenYT/TAPIR/common/storagerpc"
 )
 
 type RemoteLeaseCallbacks interface {

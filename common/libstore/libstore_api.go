@@ -3,9 +3,10 @@
 package libstore
 
 import (
-	"github.com/ViolaChenYT/TAPIR/IR/storagerpc"
 	"hash/fnv"
 	"strings"
+
+	"github.com/ViolaChenYT/TAPIR/common/storagerpc"
 )
 
 // LeaseMode is a debugging flag that determines how the Libstore should

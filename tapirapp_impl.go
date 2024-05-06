@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	. "github.com/ViolaChenYT/TAPIR/tapir"
+	. "github.com/ViolaChenYT/TAPIR/TAPIR"
 )
 
 // TapirDB represents the implementation of the TapirApp interface.
@@ -13,8 +13,8 @@ type TapirAppImpl struct {
 	client TapirClient
 }
 
-// NewTapirDB creates a new TapirDB instance.
-func NewTapirDB() TapirApp {
+// NewTapirApp creates a new TapirApp instance.
+func NewTapirApp() TapirApp {
 	client, err := NewClient(0, 0)
 	if err != nil {
 		fmt.Println("Error:", err.Error())

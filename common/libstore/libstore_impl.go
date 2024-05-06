@@ -3,12 +3,13 @@ package libstore
 import (
 	"errors"
 	"fmt"
-	"github.com/ViolaChenYT/TAPIR/IR/librpc"
-	"github.com/ViolaChenYT/TAPIR/IR/storagerpc"
 	"net/rpc"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/ViolaChenYT/TAPIR/common/librpc"
+	"github.com/ViolaChenYT/TAPIR/common/storagerpc"
 )
 
 type CacheElement struct {
