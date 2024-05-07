@@ -20,17 +20,24 @@ func NewVersionedKVStore() VersionedKVStore {
 	}
 }
 
+func EmptyEntry() *VersionedValue {
+	return &VersionedValue{
+		WriteTime: EmptyTime(),
+		Value:     "",
+	}
+}
+
 func (vs *VersionedKVStoreImpl) Get(key string) (*VersionedValue, bool) {
 	versionedVals, ok := vs.store[key]
 	if !ok {
 		// key not found
-		return nil, false
+		return EmptyEntry(), false
 	}
 
 	if len(versionedVals) > 0 {
 		return versionedVals[len(versionedVals)-1], true // Return the latest value
 	}
-	return nil, false
+	return EmptyEntry(), false
 }
 
 func (vs *VersionedKVStoreImpl) Put(key string, value string, time *Timestamp) {
@@ -55,7 +62,7 @@ func (vs *VersionedKVStoreImpl) GetLastRead(key string, time *Timestamp) (*Times
 	versionedVal, ok := vs.getValue(key, time)
 	if !ok {
 		// key not found
-		return nil, false
+		return EmptyTime(), false
 	}
 
 	return vs.lastReads[key][versionedVal.WriteTime], true
@@ -65,11 +72,11 @@ func (vs *VersionedKVStoreImpl) GetRange(key string, time *Timestamp) (*Timestam
 	versionedVals, ok := vs.store[key]
 	if !ok {
 		// key not found
-		return nil, nil, false
+		return EmptyTime(), EmptyTime(), false
 	}
 
-	var startTime *Timestamp = nil
-	var endTime *Timestamp = nil
+	var startTime *Timestamp = EmptyTime()
+	var endTime *Timestamp = EmptyTime()
 	valid := false
 	// Iterate through the versionedVals backwards
 	for i := len(versionedVals) - 1; i >= 0; i-- {
@@ -90,7 +97,7 @@ func (vs *VersionedKVStoreImpl) getValue(key string, validTime *Timestamp) (*Ver
 	versionedVals, ok := vs.store[key]
 	if !ok {
 		// key not found
-		return nil, false
+		return EmptyEntry(), false
 	}
 
 	// Iterate through the versionedVals backwards
@@ -100,7 +107,7 @@ func (vs *VersionedKVStoreImpl) getValue(key string, validTime *Timestamp) (*Ver
 		}
 	}
 
-	return nil, false
+	return EmptyEntry(), false
 }
 
 func (kv *VersionedKVStoreImpl) String() string {

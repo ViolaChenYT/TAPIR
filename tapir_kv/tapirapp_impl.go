@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	. "github.com/ViolaChenYT/TAPIR/IR"
-	. "github.com/ViolaChenYT/TAPIR/tapir_kv"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
@@ -18,7 +17,7 @@ type TapirAppImpl struct {
 }
 
 // NewTapirApp creates a new TapirApp instance.
-func NewTapirAppconfig(config *Configuration) TapirApp {
+func NewTapirApp(config *Configuration) TapirApp {
 	if config == nil {
 		config = GetConfigB()
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	tapir "github.com/ViolaChenYT/TAPIR"
+	tapir "github.com/ViolaChenYT/TAPIR/tapir_kv"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
@@ -24,7 +24,7 @@ func (c TapirCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 // CreateTapirDB creates a new instance of the TapirDB.
 func CreateTapirDB() *TapirDB {
 	return &TapirDB{
-		app: tapir.NewTapirApp(),
+		app: tapir.NewTapirApp(nil),
 	}
 }
 

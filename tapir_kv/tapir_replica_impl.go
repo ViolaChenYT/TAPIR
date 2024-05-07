@@ -58,7 +58,7 @@ func (r *TapirReplicaImpl) Read(key string) (string, *Timestamp, error) {
 	if ok {
 		return versionedVal.Value, versionedVal.WriteTime, nil
 	} else {
-		return "", nil, errors.New(fmt.Sprintf("Key %s not exist in replica %d.", key, r.ID))
+		return versionedVal.Value, versionedVal.WriteTime, errors.New(fmt.Sprintf("Key %s not exist in replica %d.", key, r.ID))
 	}
 }
 
