@@ -3,6 +3,7 @@ package tapir
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
@@ -27,6 +28,8 @@ type TapirClientImpl struct {
 
 	// Size of majority replicas
 	quorum_size int
+
+	lock sync.Mutex
 }
 
 func NewTapirClient(config *Configuration) (TapirClient, error) {
@@ -57,6 +60,7 @@ func (c *TapirClientImpl) run_client() {
 
 func (c *TapirClientImpl) Begin() {
 	// TODO: Implement a lock if previous transaction has not completed
+	c.lock.Lock()
 	c.t_id++
 
 	// Create a transaction
@@ -65,22 +69,27 @@ func (c *TapirClientImpl) Begin() {
 
 func (c *TapirClientImpl) Read(key string) (string, error) {
 	// If key is in the transaction's write set, the client returns value from the write set
-	if val, ok := c.txn.GetWriteSet()[key]; ok {
+	if val, ok := c.txn.WriteSet[key]; ok {
 		return val, nil
 	}
 	// If the transaction has already read key, it returns a cached copy
-	readSet, timeset := c.txn.GetReadSet()
+	readSet, timeset := c.txn.ReadSet, c.txn.ReadTime
 	if val, ok := readSet[key]; ok {
 		return val, nil
 	}
 	timestamp := timeset[key]
+
 	// Otherwise, the client sends Read(key) to the replica
-	// TODO: send request to read from closest replica
-	// c.ir_client.InvokeUnlogged(c.closest_replica)
-	// c.ir_client.
+	read_request := &Request{
+		Op:    OP_GET,
+		TxnID: c.t_id,
+		Get:   &GetMessage{Key: key, Timestamp: NewTimestamp(c.client_id)},
+	}
+	response, err := c.ir_client.InvokeUnlogged(c.replica_id, read_request)
+	CheckError(err)
 
 	// On response, client puts (key, version) into the transaction's read set, and returns object to the application
-	val, timestamp := "", timestamp // Placeholders
+	val, timestamp := response.Value, response.Timestamp // Placeholders
 
 	c.txn.AddReadSet(key, val, timestamp)
 	return val, nil
@@ -104,7 +113,6 @@ func (c *TapirClientImpl) Commit() bool {
 		TxnID:   c.t_id,
 		Prepare: &PrepareMessage{Txn: c.txn, Timestamp: NewTimestamp(c.client_id)},
 	}
-	log.Println("sending prepare")
 	response, err := c.ir_client.InvokeConsensus(prepare_request, c.decide) // pass decide function
 	if err != nil {
 		log.Panicf("Error invoking consensus: %v", err)
@@ -121,6 +129,7 @@ func (c *TapirClientImpl) Commit() bool {
 		// Commit to all replicas
 		log.Println("started commit request")
 		c.ir_client.InvokeInconsistent(commit_request) // TODO: how to evoke Commit() on replicas?
+		c.Continue()
 		return true
 	}
 
@@ -138,6 +147,7 @@ func (c *TapirClientImpl) Abort() {
 		TxnID: c.t_id,
 	}
 	c.ir_client.InvokeInconsistent(abort_request)
+	c.Continue()
 }
 
 /** IR support method: TAPIR decide algorithm */
@@ -185,4 +195,9 @@ func (c *TapirClientImpl) String() string {
 		"  closest_replica_id: %d\n"+
 		"}",
 		c.client_id, c.t_id, c.replica_id)
+}
+
+func (c *TapirClientImpl) Continue() {
+	log.Println("Releaseing lock")
+	c.lock.Unlock()
 }

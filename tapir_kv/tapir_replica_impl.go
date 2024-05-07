@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
 
 	. "github.com/ViolaChenYT/TAPIR/common"
 	. "github.com/ViolaChenYT/TAPIR/tapir_kv/versionstore"
@@ -20,8 +19,6 @@ type TapirReplicaImpl struct {
 	store    VersionedKVStore          // versioned data store
 	prepared map[int]*TimedTransaction // list of transactions replica is prepared to commit
 	ID       int                       // same as corredponding tapir server ID, may change
-	listener net.Listener
-	close    chan bool
 }
 
 func NewReplica(id int) TapirReplica {
@@ -29,22 +26,13 @@ func NewReplica(id int) TapirReplica {
 		store:    NewVersionedKVStore(),
 		prepared: make(map[int]*TimedTransaction),
 		ID:       id,
-		close:    make(chan bool),
 	}
 	return &r
 }
 
-// the rpc function
-
-func (r *TapirReplicaImpl) Close() error {
-	r.listener.Close()
-	r.close <- true
-	return nil
-}
-
 func (r *TapirReplicaImpl) Prepare(txn *Transaction, timestamp *Timestamp) (*Response, error) {
 	// Check prepared for txn.id
-	log.Println(r.ID, "Trying Preparing transaction", txn.ID)
+	log.Println(r.ID, "Trying Preparing transaction", txn)
 	if prepared_txn, ok := r.prepared[txn.ID]; ok {
 		if prepared_txn.time.Equals(timestamp) {
 			// Transaction already prepared
@@ -83,16 +71,20 @@ func (r *TapirReplicaImpl) Commit(txnID int, timestamp *Timestamp) error {
 
 	// Updates its versioned store
 	log.Println("Committing transaction", txnID, "trying to get read set")
-	log.Println(timedTxn)
-	_, readTimes := timedTxn.txn.GetReadSet()
+	log.Println(timedTxn.txn)
+	readTimes := timedTxn.txn.ReadTime
 	for key, version := range readTimes {
 		// Update version for read operations
+		log.Println("About to call Commit Get for key: ", key)
 		r.store.CommitGet(key, version, timestamp)
 	}
-	for key, value := range timedTxn.txn.GetWriteSet() {
+	for key, value := range timedTxn.txn.WriteSet {
 		// Update value and version for write operations
+		log.Println("About to call Put for key: ", key)
 		r.store.Put(key, value, timestamp)
 	}
+
+	log.Println("Current store ", r.ID, r.store)
 
 	// Removes the transaction from prepared list
 	log.Println(r.ID, "deleting transaction", txnID)
@@ -111,10 +103,11 @@ func (r *TapirReplicaImpl) Abort(txnID int) error {
 
 func (r *TapirReplicaImpl) occCheck(txn *Transaction, timestamp *Timestamp) *Response {
 	log.Println("-----------------------Running OCC check for transaction", txn.ID, "on replica", r.ID)
+	log.Println(txn)
 	preparedReads := r.getPreparedReads()
 	preparedWrites := r.getPreparedWrites()
 
-	readVals, readTimes := txn.GetReadSet()
+	readVals, readTimes := txn.ReadSet, txn.ReadTime
 	for key := range readVals {
 		version := readTimes[key]
 		lastVersionedVal, ok := r.store.Get(key)
@@ -131,7 +124,7 @@ func (r *TapirReplicaImpl) occCheck(txn *Transaction, timestamp *Timestamp) *Res
 		}
 	}
 
-	for key := range txn.GetWriteSet() {
+	for key := range txn.WriteSet {
 		lastRead, ok := r.store.GetLastRead(key, timestamp)
 
 		if !ok {
@@ -156,9 +149,13 @@ func (r *TapirReplicaImpl) occCheck(txn *Transaction, timestamp *Timestamp) *Res
 func (r *TapirReplicaImpl) getPreparedReads() map[string][]*Timestamp {
 	reads := make(map[string][]*Timestamp)
 	for _, timedTxn := range r.prepared {
-		readVals, _ := timedTxn.txn.GetReadSet()
+		readVals := timedTxn.txn.ReadSet
 		for key := range readVals {
-			reads[key] = append(reads[key], timedTxn.time)
+			if readsKey, ok := reads[key]; ok {
+				reads[key] = append(readsKey, timedTxn.time)
+			} else {
+				reads[key] = []*Timestamp{timedTxn.time}
+			}
 		}
 	}
 	return reads
@@ -168,8 +165,12 @@ func (r *TapirReplicaImpl) getPreparedReads() map[string][]*Timestamp {
 func (r *TapirReplicaImpl) getPreparedWrites() map[string][]*Timestamp {
 	writes := make(map[string][]*Timestamp)
 	for _, timedTxn := range r.prepared {
-		for key := range timedTxn.txn.GetWriteSet() {
-			writes[key] = append(writes[key], timedTxn.time)
+		for key := range timedTxn.txn.WriteSet {
+			if writesKey, ok := writes[key]; ok {
+				writes[key] = append(writesKey, timedTxn.time)
+			} else {
+				writes[key] = []*Timestamp{timedTxn.time}
+			}
 		}
 	}
 	return writes

@@ -1,6 +1,10 @@
 package versionstore
 
 import (
+	"fmt"
+	"log"
+	"sort"
+
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
@@ -30,7 +34,13 @@ func (vs *VersionedKVStoreImpl) Get(key string) (*VersionedValue, bool) {
 }
 
 func (vs *VersionedKVStoreImpl) Put(key string, value string, time *Timestamp) {
-	vs.store[key] = append(vs.store[key], &VersionedValue{WriteTime: time, Value: value})
+	log.Println("Commiting to KV: ", key, value)
+	if key_entry, ok := vs.store[key]; ok {
+		vs.store[key] = append(key_entry, &VersionedValue{WriteTime: time, Value: value})
+	} else {
+		log.Println("New entry created")
+		vs.store[key] = []*VersionedValue{{WriteTime: time, Value: value}}
+	}
 }
 
 func (vs *VersionedKVStoreImpl) CommitGet(key string, readTime *Timestamp, commitTime *Timestamp) {
@@ -91,4 +101,20 @@ func (vs *VersionedKVStoreImpl) getValue(key string, validTime *Timestamp) (*Ver
 	}
 
 	return nil, false
+}
+
+func (kv *VersionedKVStoreImpl) String() string {
+	result := "VersionedKVStore:\n"
+	for key, versions := range kv.store {
+		result += fmt.Sprintf("Key: %s\n", key)
+		sort.Slice(versions, func(i, j int) bool {
+			return versions[i].WriteTime.LessThan(versions[j].WriteTime)
+		})
+		for _, vv := range versions {
+			lastRead := kv.lastReads[key][vv.WriteTime]
+			result += fmt.Sprintf("\tWrite Time: %v, Value: %v, Last Read Time: %v\n",
+				vv.WriteTime, vv.Value, lastRead)
+		}
+	}
+	return result
 }

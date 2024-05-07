@@ -1,83 +1,80 @@
 package common
 
-import (
-	"time"
-)
+import "time"
 
 type Timestamp struct {
-	timestamp time.Time
-	id        int
+  Timestamp time.Time
+  ID        int
 }
 
 // NewTimestamp creates a new Timestamp instance
-func NewTimestamp(client_id int) *Timestamp {
-	return &Timestamp{
-		timestamp: time.Now(),
-		id:        client_id,
-	}
+func NewTimestamp(clientID int) *Timestamp {
+    return &Timestamp{
+        Timestamp: time.Now(),
+        ID:        clientID,
+    }
 }
 
-func NewCustomTimestamp(client_id int, timestamp time.Time) *Timestamp {
-	return &Timestamp{
-		timestamp: timestamp,
-		id:        client_id,
-	}
+func NewCustomTimestamp(clientID int, timestamp time.Time) *Timestamp {
+    return &Timestamp{
+        Timestamp: timestamp,
+        ID:        clientID,
+    }
 }
 
 func (t *Timestamp) Equals(other *Timestamp) bool {
-	return t.timestamp == other.timestamp && t.id == other.id
+    return t.Timestamp.Equal(other.Timestamp) && t.ID == other.ID
 }
 
 func (t *Timestamp) NotEquals(other *Timestamp) bool {
-	return t.timestamp != other.timestamp || t.id != other.id
+    return !t.Equals(other)
 }
 
 func (t *Timestamp) GreaterThan(other *Timestamp) bool {
-	if t.timestamp == other.timestamp {
-		return t.id > other.id
-	}
-	return t.timestamp.After(other.timestamp)
+    if t.Timestamp.Equal(other.Timestamp) {
+        return t.ID > other.ID
+    }
+    return t.Timestamp.After(other.Timestamp)
 }
 
 func (t *Timestamp) LessThan(other *Timestamp) bool {
-	if t.timestamp == other.timestamp {
-		return t.id < other.id
-	}
-	return t.timestamp.Before(other.timestamp)
+    return !t.GreaterThan(other) && !t.Equals(other)
 }
 
 func (t *Timestamp) LessThanOrEqualTo(other *Timestamp) bool {
-	if t.timestamp == other.timestamp {
-		return t.id <= other.id
-	}
-	return !t.timestamp.After(other.timestamp)
+    return t.Equals(other) || t.LessThan(other)
 }
 
 func LaterTime(t1 *Timestamp, t2 *Timestamp) *Timestamp {
-	if t1.timestamp.Before(t2.timestamp) {
-		return t2
-	} else {
-		return t1
-	}
+    if t1.GreaterThan(t2) {
+        return t1
+    }
+    return t2
 }
 
 // Helpers
 func MinTimestamp(timestamps []*Timestamp) *Timestamp {
-	min := timestamps[0]
-	for _, ts := range timestamps {
-		if ts.LessThan(min) {
-			min = ts
-		}
-	}
-	return min
+    if len(timestamps) == 0 {
+        return nil
+    }
+    min := timestamps[0]
+    for _, ts := range timestamps[1:] {
+        if ts.LessThan(min) {
+            min = ts
+        }
+    }
+    return min
 }
 
 func MaxTimestamp(timestamps []*Timestamp) *Timestamp {
-	max := timestamps[0]
-	for _, ts := range timestamps {
-		if ts.GreaterThan(max) {
-			max = ts
-		}
-	}
-	return max
+    if len(timestamps) == 0 {
+        return nil
+    }
+    max := timestamps[0]
+    for _, ts := range timestamps[1:] {
+        if ts.GreaterThan(max) {
+            max = ts
+        }
+    }
+    return max
 }

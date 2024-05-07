@@ -22,4 +22,7 @@ type TapirApp interface {
 
 	// Abort aborts a transaction.
 	Abort() error
+
+	// Close the application
+	Close()
 }

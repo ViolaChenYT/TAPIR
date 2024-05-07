@@ -109,7 +109,7 @@ func TestSimpleCommit(t *testing.T) {
 	client.Write(key0, val0)
 
 	val, err := client.Read(key0)
-	if val != val2 {
+	if val != val0 {
 		t.Errorf("Expected val to be %s, got: %s", val0, val)
 	}
 	if err != nil {
@@ -117,13 +117,84 @@ func TestSimpleCommit(t *testing.T) {
 	}
 
 	log.Println("test commit")
-	client.Commit()
-	log.Println("after commit")
-	v1, err := client.Read(key1)
-	if v1 != val1 {
-		t.Errorf("Expected val to be %s, got: %s", val1, v1)
+	ok := client.Commit()
+	if !ok {
+		t.Errorf("Commit failed, expected to suceed")
 	}
+
 	log.Println("ok commit")
+}
+
+func TestSimpleReadFromStore(t *testing.T) {
+	config := GetConfigA()
+
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		NewIRReplica(id, addr, store)
+	}
+
+	client, _ := NewTapirClient(config)
+	// First Transaction: Commit a write
+	client.Begin()
+	client.Write(key0, val0)
+	ok := client.Commit()
+	// time.Sleep(time.Second)
+
+	if !ok {
+		t.Errorf("First commit failed, expected to suceed")
+	}
+	log.Println("Write transaction done!")
+
+	// Second Transaction: Read from the previous written entry
+	client.Begin()
+	val, err := client.Read(key0)
+	if err != nil {
+		t.Errorf("Expected err to be nil, got: %v", err)
+	}
+	if val != val0 {
+		t.Errorf("Expected val to be %s, got: %s", val0, val)
+	}
+
+	ok = client.Commit()
+	if !ok {
+		t.Errorf("Second commit failed, expected to suceed")
+	}
+}
+
+func TestSimpleAbort(t *testing.T) {
+	config := GetConfigA()
+
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		NewIRReplica(id, addr, store)
+	}
+
+	client, _ := NewTapirClient(config)
+	// First Transaction: Commit a write
+	client.Begin()
+	client.Write(key0, val0)
+	client.Commit()
+
+	// Second Transaction: Abort a write
+	client.Begin()
+	client.Write(key0, val1)
+	val, _ := client.Read(key0)
+	if val != val1 {
+		t.Errorf("Expected val to be %s, got: %s", val1, val)
+	}
+	client.Abort()
+
+	// Third Transaction: Read
+	client.Begin()
+	val, err := client.Read(key0)
+	if err != nil {
+		t.Errorf("Expected err to be nil, got: %v", err)
+	}
+	if val != val0 {
+		t.Errorf("Expected val to be %s, got: %s", val0, val)
+	}
+
+	client.Commit()
 }
 
 func TestCommit(t *testing.T) {
@@ -166,12 +237,14 @@ func TestCommit(t *testing.T) {
 	log.Println("test commit")
 	client.Commit()
 	log.Println("after commit")
-	// v1, err := client.Read(key1)
-	// if v1 != val1 {
-	// 	t.Errorf("Expected val to be %s, got: %s", val1, v1)
-	// 	return
-	// }
-	// log.Println("ok commit")
+	client.Begin()
+	v1, err := client.Read(key1)
+	if v1 != val1 {
+		t.Errorf("Expected val to be %s, got: %s", val1, v1)
+		return
+	}
+	time.Sleep(time.Second)
+	log.Println("ok commit")
 }
 
 func TestMostBasicSetup(t *testing.T) {
@@ -215,4 +288,34 @@ func Test3ReplicaSetup(t *testing.T) {
 		t.Fatal("Failed to dial server:", err)
 	}
 	log.Println("ok", client)
+}
+
+func TestAbort(t *testing.T) {
+	config := GetConfigA()
+	var replica IRReplica = nil
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica = NewIRReplica(id, addr, store)
+	}
+	log.Println("Replica created: ", replica)
+
+	client, err := NewTapirClient(config)
+
+	client.Begin()
+	client.Write(key0, val0)
+
+	val, err := client.Read(key0)
+	if val != val0 {
+		t.Errorf("Expected val to be %s, got: %s", val0, val)
+	}
+	if err != nil {
+		t.Errorf("Expected err to be nil, got: %v", err)
+	}
+
+	log.Println("test commit")
+	ok := client.Commit()
+	if !ok {
+		t.Errorf("Commit failed, expected to suceed")
+	}
+	client.Abort()
 }

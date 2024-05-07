@@ -1,40 +1,50 @@
 package common
 
+import (
+	"fmt"
+)
+
 // Transaction represents a transaction with read and write sets
 type Transaction struct {
 	ID       int
-	readSet  map[string]string
-	readTime map[string]*Timestamp
-	writeSet map[string]string
+	ReadSet  map[string]string
+	ReadTime map[string]*Timestamp
+	WriteSet map[string]string
 }
 
 // NewTransaction creates a new Transaction instance
 func NewTransaction(id int) *Transaction {
 	return &Transaction{
 		ID:       id,
-		readSet:  make(map[string]string), // value and read time from store
-		readTime: make(map[string]*Timestamp),
-		writeSet: make(map[string]string),
+		ReadSet:  make(map[string]string), // value and read time from store
+		ReadTime: make(map[string]*Timestamp),
+		WriteSet: make(map[string]string),
 	}
-}
-
-// GetReadSet returns the read set of the transaction
-func (t *Transaction) GetReadSet() (map[string]string, map[string]*Timestamp) {
-	return t.readSet, t.readTime
-}
-
-// GetWriteSet returns the write set of the transaction
-func (t *Transaction) GetWriteSet() map[string]string {
-	return t.writeSet
 }
 
 // AddReadSet adds an entry to the read set of the transaction
 func (t *Transaction) AddReadSet(key string, value string, readTime *Timestamp) {
-	t.readSet[key] = value
-	t.readTime[key] = readTime
+	t.ReadSet[key] = value
+	t.ReadTime[key] = readTime
 }
 
 // AddWriteSet adds an entry to the write set of the transaction
 func (t *Transaction) AddWriteSet(key, value string) {
-	t.writeSet[key] = value
+	t.WriteSet[key] = value
+}
+
+func (t Transaction) String() string {
+	readSetStr := "{"
+	for key, value := range t.ReadSet {
+		readSetStr += fmt.Sprintf("%s: (%s, %v), ", key, value, t.ReadTime[key])
+	}
+	readSetStr += "}"
+
+	writeSetStr := "{"
+	for key, value := range t.WriteSet {
+		writeSetStr += fmt.Sprintf("%s: %s, ", key, value)
+	}
+	writeSetStr += "}"
+
+	return fmt.Sprintf("Transaction ID: %d\nRead Set: %s\n Write Set: %s\n", t.ID, readSetStr, writeSetStr)
 }

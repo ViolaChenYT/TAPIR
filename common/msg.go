@@ -15,6 +15,21 @@ const (
 	OP_ABORT
 )
 
+func (op OpType) ToString() string {
+	switch op {
+	case OP_GET:
+		return "OP_GET"
+	case OP_PREPARE:
+		return "OP_PREPARE"
+	case OP_COMMIT:
+		return "OP_COMMIT"
+	case OP_ABORT:
+		return "OP_ABORT"
+	default:
+		return "Unknown Operation"
+	}
+}
+
 type MsgType int
 
 const (
@@ -23,6 +38,21 @@ const (
 	MsgFinalize
 	MsgConfirm
 )
+
+func (msg MsgType) ToString() string {
+	switch msg {
+	case MsgPropose:
+		return "Propose"
+	case MsgReply:
+		return "Reply"
+	case MsgFinalize:
+		return "Finalize"
+	case MsgConfirm:
+		return "Confirm"
+	default:
+		return "Unknown Operation"
+	}
+}
 
 type PrepareState int
 
@@ -47,6 +77,13 @@ const (
 // 	State   PrepareState
 // }
 
+type ProtoType int
+
+const (
+	CONSENSUS ProtoType = iota
+	INCONSISTENT
+)
+
 // Message represents a message used by the LSP protocol.
 type Message struct {
 	Type        MsgType // One of the message types listed above.
@@ -54,13 +91,15 @@ type Message struct {
 	OperationID int     // operation ID
 	Response    *Response
 	Request     *Request
+	ProtoType   ProtoType
 }
 
-func NewPropose(opID int, op *Request) Message {
+func NewPropose(opID int, op *Request, proto ProtoType) Message {
 	return Message{
 		Type:        MsgPropose,
 		OperationID: opID,
 		Request:     op,
+		ProtoType:   proto,
 	}
 }
 
@@ -72,10 +111,19 @@ func NewReply(opID int, res *Response) Message {
 	}
 }
 
-func NewFinalize(opID int) Message {
+func NewUnlogged(op *Request) Message {
+	return Message{
+		OperationID: op.TxnID,
+		Type:        MsgFinalize,
+		Request:     op,
+	}
+}
+
+func NewFinalize(opID int, proto ProtoType) Message {
 	return Message{
 		Type:        MsgFinalize,
 		OperationID: opID,
+		ProtoType:   proto,
 	}
 }
 func Finalize(opID int, res *Response) Message {
@@ -133,6 +181,21 @@ const (
 	RPLY_RETRY
 	RPLY_ABSTAIN
 )
+
+func ReplyTypeString(r ReplyType) string {
+	switch r {
+	case RPLY_OK:
+		return "RPLY_OK"
+	case RPLY_ABORT:
+		return "RPLY_ABORT"
+	case RPLY_RETRY:
+		return "RPLY_RETRY"
+	case RPLY_ABSTAIN:
+		return "RPLY_ABSTAIN"
+	default:
+		return fmt.Sprintf("Unknown ReplyType: %d", r)
+	}
+}
 
 type Response struct {
 	Status    ReplyType

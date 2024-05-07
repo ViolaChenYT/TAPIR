@@ -3,25 +3,41 @@ package tapir
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
+	. "github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/TAPIR_kv"
+	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
 // TapirDB represents the implementation of the TapirApp interface.
 type TapirAppImpl struct {
-	client TapirClient
+	client   TapirClient
+	replicas []IRReplica
 }
 
 // NewTapirApp creates a new TapirApp instance.
-func NewTapirApp() TapirApp {
-	client, err := NewClient(0, 0)
+func NewTapirAppconfig(config *Configuration) TapirApp {
+	if config == nil {
+		config = GetConfigB()
+	}
+	var replicas = []IRReplica{}
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica := NewIRReplica(id, addr, store)
+		replicas = append(replicas, replica)
+		log.Println("ok", replica)
+	}
+
+	client, err := NewTapirClient(config)
 	if err != nil {
 		fmt.Println("Error:", err.Error())
 		return nil
 	}
 	return &TapirAppImpl{
-		client: client,
+		client:   client,
+		replicas: replicas,
 	}
 }
 
@@ -99,6 +115,12 @@ func (app *TapirAppImpl) Commit() error {
 func (app *TapirAppImpl) Abort() error {
 	app.client.Abort()
 	return nil
+}
+
+func (app *TapirAppImpl) Close() {
+	for _, replica := range app.replicas {
+		replica.Stop()
+	}
 }
 
 /** Helper */

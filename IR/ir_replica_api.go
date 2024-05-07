@@ -4,14 +4,22 @@ import (
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
-// Implement IR Replica functions
-type Replica interface {
+// IR Replica functions
+type IRReplica interface {
+	// Handle requests
+	HandleOperation(request *Message, reply *Message) error
+	// Stop the server
+	Stop()
+}
+
+// IR Replica App functions
+type IRAppReplica interface {
 	// Invoke inconsistent operation (commit, abort), no return value
-	ExecInconsistent(op *Request) error
+	ExecInconsistentUpcall(op *Request) error
 
 	// Invoke consensus operation (prepare)
-	ExecConsensus(op *Request) (*Response, error)
+	ExecConsensusUpcall(op *Request) (*Response, error)
 
 	// Invoke unlogged operation (only support read)
-	ExecUnlogged(op *Request) (*Response, error)
+	ExecUnloggedUpcall(op *Request) (*Response, error)
 }

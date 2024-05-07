@@ -3,6 +3,7 @@ package IR
 import (
 	//
 
+	"fmt"
 	"log"
 	"net"
 	"net/rpc"
@@ -21,111 +22,165 @@ type Client struct {
 	client_id        int
 	operation_cnt    int
 	conn             net.Conn
-	close            chan bool // close channel
-	allReplicas      []*rpc.Client
-	replicaAddresses []string
+	close            chan bool               // close channel
+	allReplicas      map[int]*rpc.Client     // <replica_id, client>
+	replicaAddresses map[int]*ReplicaAddress // <replica_id, address>
+	f                int                     // max number of fault tolerance
 }
 
-func NewClient(id int, serverAddresses []string) (*Client, error) {
+func NewIRClient(config *Configuration) (*Client, error) {
 	client := Client{
-		client_id:        id,
+		client_id:        config.Client.IR_ID,
 		operation_cnt:    0,
 		close:            make(chan bool),
-		replicaAddresses: serverAddresses,
-		allReplicas:      make([]*rpc.Client, len(serverAddresses)),
+		replicaAddresses: config.Replicas,
+		allReplicas:      make(map[int]*rpc.Client),
+		f:                config.F,
 	}
-	for i, addr := range serverAddresses {
-		specific_str := "localhost:" + addr
-		log.Println("client trying Connecting to", specific_str)
-		cli, err := rpc.Dial("tcp", specific_str)
-		log.Println(addr, " connected")
+	// errCh := make(chan error, len(config.Replicas))
+
+	for idx, addr := range config.Replicas {
+		cli, err := rpc.Dial("tcp", addr.SpecificString())
 		CheckError(err)
-		client.allReplicas[i] = cli
+		client.allReplicas[idx] = cli
 	}
 	return &client, nil
 }
 
-func (c *Client) callOneReplica(cli *rpc.Client, msg Message, wg *sync.WaitGroup, results map[int]Response) *Message {
-	defer wg.Done()
+func (c *Client) callOneReplica(rep int, cli *rpc.Client, msg Message, results map[int]*Response, semaphone chan bool) *Message {
+	// port := c.replicaAddresses[rep].Port
+	// real_cli, err := rpc.Dial("tcp", "localhost:"+port)
+	// if msg.Request.Op == OP_PREPARE {
+	// 	log.Println("calling 1 replica for prepare", msg.Request.Prepare.Txn)
+	// }
 	reply := Message{}
-	cli.Call("Replica.HandleOperation", msg, &reply)
-	results[c.client_id] = *reply.Response
+	err := cli.Call(fmt.Sprintf("IRReplica%d.HandleOperation", rep), &msg, &reply)
+	if err != nil {
+		log.Fatal("arith error: ", err)
+	}
+	if results != nil {
+		results[rep] = reply.Response
+		// log.Println("callOneReplica, client", c.client_id, "Op", msg.Request.Op, "txn", msg.Request.TxnID, "val", reply.Response.Value)
+		semaphone <- true
+	}
 	return &reply
 }
 
-func (c *Client) msgOneReplica(cli *rpc.Client, msg Message) {
+func (c *Client) msgOneReplica(rep int, cli *rpc.Client, msg Message) {
 	reply := Message{}
-	cli.Call("Replica.HandleOperation", msg, &reply)
+	// if msg.Request.Op == OP_PREPARE {
+	// 	log.Println("messaging 1 replica for prepare", msg.Request.TxnID)
+	// }
+	cli.Call(fmt.Sprintf("IRReplica%d.HandleOperation", rep), msg, &reply)
 }
 
 func (c *Client) InvokeInconsistent(req *Request) error {
-	results := make(map[int]Response)
-	var wg sync.WaitGroup
-	f := (len(c.allReplicas) - 1) / 2
-	wg.Add(f + 1)
-	for _, cli := range c.allReplicas {
-		msg := NewPropose(req.TxnID, req)
-		go c.callOneReplica(cli, msg, &wg, results)
+	log.Println("InvokeInconsistent", req.Op.ToString(), req.TxnID)
+	results := make(map[int]*Response)
+
+	semaphone := make(chan bool, c.f+1)
+	for id, cli := range c.allReplicas {
+		msg := NewPropose(req.TxnID, req, INCONSISTENT)
+		msg.Type = MsgPropose
+		go c.callOneReplica(id, cli, msg, results, semaphone)
 	}
+	log.Println("invoke I propose done")
+	done := make(chan bool)
 	// wait for reply
-	wg.Wait()
-	for _, cli := range c.allReplicas {
-		msg := NewFinalize(req.TxnID)
-		go c.msgOneReplica(cli, msg)
+	go func() {
+		for i := 0; i < c.f+1; i++ {
+			<-semaphone
+		}
+		done <- true
+	}()
+	<-done
+	log.Println("Invoke I, finalizing")
+	var wg sync.WaitGroup
+	for idx, cli := range c.allReplicas {
+		msg := NewFinalize(req.TxnID, INCONSISTENT)
+		msg.Request = req
+		// go c.msgOneReplica(idx, cli, msg)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c.msgOneReplica(idx, cli, msg)
+		}()
 	}
+	wg.Wait()
 	c.operation_cnt++
 	return nil
 }
 
 func (c *Client) InvokeConsensus(req *Request, decide ConsensusDecide) (*Response, error) {
-	results := make(map[int]Response)
+	log.Println("InvokeConsensus", req.Op, req.Prepare.Txn)
+	results := make(map[int]*Response)
 	consensusRes := Response{}
-	var wg sync.WaitGroup
-	f := (len(c.allReplicas) - 1) / 2
-	wg.Add(f + 1)
+	sem := make(chan bool, len(c.allReplicas))
 	timer := time.NewTimer(timeout * time.Second)
-	for _, cli := range c.allReplicas {
-		msg := NewPropose(req.TxnID, req)
-		go c.callOneReplica(cli, msg, &wg, results)
+	for id, cli := range c.allReplicas {
+		msg := NewPropose(req.TxnID, req, CONSENSUS)
+		go c.callOneReplica(id, cli, msg, results, sem)
 	}
-
+	log.Println("waiting for consensus timer")
 	<-timer.C
 	value_cnt := make(map[string]int)
 	max_val, max_cnt := "", 0
-	for _, res := range results {
+	for key, res := range results {
 		res_val := res.Value
+		log.Println("------------------", key, ": res_val", res_val)
 		if _, ok := value_cnt[res_val]; ok {
 			value_cnt[res_val]++
 		} else {
 			value_cnt[res_val] = 1
 		}
 		if value_cnt[res_val] > max_cnt {
-			max_val, max_cnt = res_val, value_cnt[res_val]
+			max_val = res_val
+			max_cnt = value_cnt[res_val]
 		}
 	}
-	if (max_cnt) >= (3*f/2)+1 {
-		for _, cli := range c.allReplicas {
+	log.Println("max_cnt", max_cnt, "max_val", max_val)
+	if (max_cnt) >= (3*c.f/2)+1 {
+		for idx, cli := range c.allReplicas {
 			consensusRes.Value = max_val
+			log.Println("fast path finalize")
 			msg := Finalize(req.TxnID, &consensusRes)
-			go c.msgOneReplica(cli, msg)
+			msg.Request = req
+			log.Println("finalizing concensus")
+			c.msgOneReplica(idx, cli, msg)
 		}
+		log.Println("fast path done")
 	} else {
-		wg.Wait()
+		log.Println("wait for slow path")
+		done := make(chan bool)
+		go func() {
+			for i := 0; i < c.f+1; i++ {
+				<-sem
+			}
+			done <- true
+		}()
+		log.Println("waiting for consensus ")
+		<-done
 		var result_arr []*Response
 		for _, res := range results {
-			result_arr = append(result_arr, &res)
+			result_arr = append(result_arr, res)
 		}
 		consensusRes = *decide(result_arr)
 		finalize_msg := Finalize(req.TxnID, &consensusRes)
-		var wg2 sync.WaitGroup
-		wg2.Add(f + 1)
-		for _, cli := range c.allReplicas {
-			go c.callOneReplica(cli, finalize_msg, &wg2, results)
+		finalize_msg.Request = req
+		finalize_msg.ProtoType = CONSENSUS
+		for idx, cli := range c.allReplicas {
+			go c.msgOneReplica(idx, cli, finalize_msg)
 		}
-		wg2.Wait() // wait for "Confirm" from replicas
 	}
 	c.operation_cnt++
 	return &consensusRes, nil
+}
+
+func (c *Client) InvokeUnlogged(replicaIdx int, req *Request) (*Response, error) {
+	reqMsg := NewUnlogged(req)
+
+	replyMsg := c.callOneReplica(replicaIdx, c.allReplicas[replicaIdx], reqMsg, nil, nil)
+	return replyMsg.Response, nil
 }
 
 func (c *Client) Close() {
