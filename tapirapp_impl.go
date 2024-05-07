@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	. "github.com/ViolaChenYT/TAPIR/IR"
-	. "github.com/ViolaChenYT/TAPIR/TAPIR_kv"
+	. "github.com/ViolaChenYT/TAPIR/tapir_kv"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
