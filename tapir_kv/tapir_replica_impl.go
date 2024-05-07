@@ -3,6 +3,7 @@ package tapir
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 
 	. "github.com/ViolaChenYT/TAPIR/common"
@@ -19,7 +20,6 @@ type TapirReplicaImpl struct {
 	store    VersionedKVStore          // versioned data store
 	prepared map[int]*TimedTransaction // list of transactions replica is prepared to commit
 	ID       int                       // same as corredponding tapir server ID, may change
-	record   *Record
 	listener net.Listener
 	close    chan bool
 }
@@ -29,30 +29,9 @@ func NewReplica(id int) TapirReplica {
 		store:    NewVersionedKVStore(),
 		prepared: make(map[int]*TimedTransaction),
 		ID:       id,
-		record:   emptyRecord(),
 		close:    make(chan bool),
 	}
 	return &r
-}
-
-const ( // state of operations
-	TENTATIVE = iota
-	FINALIZED = iota
-)
-
-const ( // state of reply)
-	REPLY_OK   = iota
-	REPLY_FAIL = iota
-)
-
-type Record struct {
-	values map[Request]int
-}
-
-func emptyRecord() *Record {
-	return &Record{
-		values: make(map[Request]int),
-	}
 }
 
 // the rpc function
@@ -65,6 +44,7 @@ func (r *TapirReplicaImpl) Close() error {
 
 func (r *TapirReplicaImpl) Prepare(txn *Transaction, timestamp *Timestamp) (*Response, error) {
 	// Check prepared for txn.id
+	log.Println(r.ID, "Trying Preparing transaction", txn.ID)
 	if prepared_txn, ok := r.prepared[txn.ID]; ok {
 		if prepared_txn.time.Equals(timestamp) {
 			// Transaction already prepared
@@ -73,6 +53,11 @@ func (r *TapirReplicaImpl) Prepare(txn *Transaction, timestamp *Timestamp) (*Res
 			// Re-run the checks again for a new timestamp
 			delete(r.prepared, txn.ID)
 		}
+	} else {
+		// New transaction
+		newtime := NewTimestamp(timestamp.ID)
+		r.prepared[txn.ID] = &TimedTransaction{txn, newtime}
+		return r.occCheck(txn, newtime), nil
 	}
 
 	// Run OCC checks
@@ -90,9 +75,15 @@ func (r *TapirReplicaImpl) Read(key string) (string, *Timestamp, error) {
 }
 
 func (r *TapirReplicaImpl) Commit(txnID int, timestamp *Timestamp) error {
+	// for id, timedTxn := range r.prepared {
+	// 	log.Println("Prepared transaction", id, ":", timedTxn)
+	// }
+	log.Println(r.ID, "currently", len(r.prepared), "prepared transactions-----------------")
 	timedTxn := r.prepared[txnID]
 
 	// Updates its versioned store
+	log.Println("Committing transaction", txnID, "trying to get read set")
+	log.Println(timedTxn)
 	_, readTimes := timedTxn.txn.GetReadSet()
 	for key, version := range readTimes {
 		// Update version for read operations
@@ -104,12 +95,14 @@ func (r *TapirReplicaImpl) Commit(txnID int, timestamp *Timestamp) error {
 	}
 
 	// Removes the transaction from prepared list
+	log.Println(r.ID, "deleting transaction", txnID)
 	delete(r.prepared, txnID)
 	return nil
 }
 
 func (r *TapirReplicaImpl) Abort(txnID int) error {
 	// Removes the transaction from prepared list
+	log.Println(r.ID, "Aborting transaction", txnID)
 	delete(r.prepared, txnID)
 	return nil
 }
@@ -117,6 +110,7 @@ func (r *TapirReplicaImpl) Abort(txnID int) error {
 // Private functions
 
 func (r *TapirReplicaImpl) occCheck(txn *Transaction, timestamp *Timestamp) *Response {
+	log.Println("-----------------------Running OCC check for transaction", txn.ID, "on replica", r.ID)
 	preparedReads := r.getPreparedReads()
 	preparedWrites := r.getPreparedWrites()
 

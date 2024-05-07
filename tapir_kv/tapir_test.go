@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
 
@@ -20,8 +21,7 @@ const (
 	val2       = "yan"
 )
 
-var replica_addresses = []string{"55209", "55210", "55211"}
-
+// var replica_addresses = []string{"55209", "55210", "55211"}
 // testing in terminal:
 // go test -run <name of specific test>
 // eg. go test -run TestReplicaSetup
@@ -94,39 +94,123 @@ func TestReplicaCommit(t *testing.T) {
 	}
 }
 
-func TestMostBasicSetup(t *testing.T) {
-	port := 55209
-	// server 1: address localhost:55209
-	replica := NewTapirServer(1, fmt.Sprintf("%d", port))
-	log.Println("ok", replica)
-	time.Sleep(time.Second)
-	// client 1:
-	// now there's only 1 server
-	// closest replica port = 55209
-	// all replica = []string{"55209"}
-	client, err := NewClient(1, port, []string{fmt.Sprintf("%d", port)})
-	if err != nil {
-		t.Fatal("Failed to dial server:", err)
+func TestSimpleCommit(t *testing.T) {
+	config := GetConfigA()
+	var replica IRReplica = nil
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica = NewIRReplica(id, addr, store)
 	}
-	log.Println("ok", client)
+	log.Println("Replica created: ", replica)
+
+	client, err := NewTapirClient(config)
+
+	client.Begin()
+	client.Write(key0, val0)
+
+	val, err := client.Read(key0)
+	if val != val2 {
+		t.Errorf("Expected val to be %s, got: %s", val0, val)
+	}
+	if err != nil {
+		t.Errorf("Expected err to be nil, got: %v", err)
+	}
+
+	log.Println("test commit")
+	client.Commit()
+	log.Println("after commit")
+	v1, err := client.Read(key1)
+	if v1 != val1 {
+		t.Errorf("Expected val to be %s, got: %s", val1, v1)
+	}
+	log.Println("ok commit")
 }
 
-func Test3ReplicaSetup(t *testing.T) {
-	// server 1: address localhost:55209
-	replica1 := NewTapirServer(1, replica_addresses[0])
-	time.Sleep(time.Second)
-	// server 2: address localhost:55210
-	replica2 := NewTapirServer(2, replica_addresses[1])
-	time.Sleep(time.Second)
-	// server 3: address localhost:55211
-	replica3 := NewTapirServer(3, replica_addresses[2])
-	time.Sleep(time.Second)
-	log.Println("ok", replica1, replica2, replica3)
+func TestCommit(t *testing.T) {
+	fmt.Println("TestCommit")
+	config := GetConfigB()
+	var replicas = []IRReplica{}
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica := NewIRReplica(id, addr, store)
+		replicas = append(replicas, replica)
+		log.Println("ok", replica)
+		// time.Sleep(time.Second)
+	}
+	log.Println("ok", replicas[0], replicas[1], replicas[2])
 	// client 1:
 	// now there's 3 servers
 	// closest replica port = 55209
 	// all replica = []string{"55209", "55210", "55211"}
-	client, err := NewClient(1, 55209, replica_addresses)
+	client, err := NewTapirClient(config)
+	if err != nil {
+		t.Fatal("Failed to dial server:", err)
+	}
+	log.Println("start testing txn")
+	timestamps := createAscendingTimes(5)
+	// Create test transaction
+	txn := NewTransaction(txn_id)
+	txn.AddWriteSet(key0, val0)
+	txn.AddWriteSet(key1, val1)
+	txn.AddReadSet(key0, val0, timestamps[0])
+	client.Begin()
+	client.Write(key0, val0)
+	client.Write(key1, val1)
+	client.Write(key0, val2)
+	val, err := client.Read(key0)
+	if val != val2 {
+		t.Errorf("Expected val to be %s, got: %s", val2, val)
+		return
+	}
+	log.Println("ok read write")
+	log.Println("test commit")
+	client.Commit()
+	log.Println("after commit")
+	// v1, err := client.Read(key1)
+	// if v1 != val1 {
+	// 	t.Errorf("Expected val to be %s, got: %s", val1, v1)
+	// 	return
+	// }
+	// log.Println("ok commit")
+}
+
+func TestMostBasicSetup(t *testing.T) {
+	config := GetConfigA()
+	// server 1: address localhost:55209
+	var replica IRReplica = nil
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica = NewIRReplica(id, addr, store)
+		log.Println("ok", replica)
+		// time.Sleep(time.Second)
+	}
+	// client 1:
+	// now there's only 1 server
+	// closest replica port = 55209
+	// all replica = []string{"55209"}
+	client, err := NewTapirClient(config)
+	if err != nil {
+		t.Fatal("Failed to dial server:", err)
+	}
+	log.Println("ok", client)
+	replica.Stop()
+}
+
+func Test3ReplicaSetup(t *testing.T) {
+	config := GetConfigB()
+	var replicas = []IRReplica{}
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		replica := NewIRReplica(id, addr, store)
+		replicas = append(replicas, replica)
+		log.Println("ok", replica)
+	}
+	log.Println("ok", replicas[0], replicas[1], replicas[2])
+	// client 1:
+	// now there's 3 servers
+	// closest replica port = 55209
+	// all replica = []string{"55209", "55210", "55211"}
+	client, err := NewTapirClient(config)
 	if err != nil {
 		t.Fatal("Failed to dial server:", err)
 	}

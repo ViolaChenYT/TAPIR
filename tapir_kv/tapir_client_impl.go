@@ -1,13 +1,12 @@
 package tapir
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/ViolaChenYT/TAPIR/IR"
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
-
-const QUORUM_SIZE = 3 // TODO: change
 
 // TapirClientImpl is an implementation of the TapirClient interface
 type TapirClientImpl struct {
@@ -25,17 +24,21 @@ type TapirClientImpl struct {
 
 	// Closet replica for read ops
 	replica_id int
+
+	// Size of majority replicas
+	quorum_size int
 }
 
-func NewClient(id int, closest_replica int, allReplica []string) (TapirClient, error) {
+func NewTapirClient(config *Configuration) (TapirClient, error) {
 	client := TapirClientImpl{
-		client_id:  id,
-		t_id:       0, // TODO: change
-		replica_id: closest_replica,
+		client_id:   config.Client.TAPIR_ID,
+		t_id:        0,
+		replica_id:  config.Client.ClosestReplicaID,
+		quorum_size: config.QuorumSize(),
 	}
 
 	// Create replica proxy
-	cl, err := IR.NewClient(id, allReplica)
+	cl, err := IR.NewIRClient(config)
 	if err != nil {
 		log.Panicf("Error creating IR client: %v", err)
 		return nil, err
@@ -101,11 +104,13 @@ func (c *TapirClientImpl) Commit() bool {
 		TxnID:   c.t_id,
 		Prepare: &PrepareMessage{Txn: c.txn, Timestamp: NewTimestamp(c.client_id)},
 	}
+	log.Println("sending prepare")
 	response, err := c.ir_client.InvokeConsensus(prepare_request, c.decide) // pass decide function
 	if err != nil {
 		log.Panicf("Error invoking consensus: %v", err)
 		return false
 	}
+	log.Println("prepare passed, status: " + ReplyTypeString(response.Status))
 
 	if response.Status == RPLY_OK {
 		commit_request := &Request{
@@ -114,6 +119,7 @@ func (c *TapirClientImpl) Commit() bool {
 			Commit: &CommitMessage{Timestamp: NewTimestamp(c.client_id)},
 		}
 		// Commit to all replicas
+		log.Println("started commit request")
 		c.ir_client.InvokeInconsistent(commit_request) // TODO: how to evoke Commit() on replicas?
 		return true
 	}
@@ -157,11 +163,11 @@ func (c *TapirClientImpl) decide(results []*Response) *Response {
 		}
 	}
 
-	if ok_count > QUORUM_SIZE {
+	if ok_count > c.quorum_size {
 		return NewResponse(RPLY_OK)
 	}
 
-	if abstain_count > QUORUM_SIZE {
+	if abstain_count > c.quorum_size {
 		return NewResponse(RPLY_ABORT)
 	}
 
@@ -170,4 +176,13 @@ func (c *TapirClientImpl) decide(results []*Response) *Response {
 	}
 
 	return NewResponse(RPLY_ABORT)
+}
+
+func (c *TapirClientImpl) String() string {
+	return fmt.Sprintf("TAPIR Client {\n"+
+		"  id: %d,\n"+
+		"  ongoing_transaction: %d,\n"+
+		"  closest_replica_id: %d\n"+
+		"}",
+		c.client_id, c.t_id, c.replica_id)
 }
