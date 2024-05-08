@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"sync"
 
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
@@ -16,6 +17,7 @@ type IRReplicaImpl struct {
 	listener net.Listener
 	record   *Record
 	addr     *ReplicaAddress
+	mu       *sync.Mutex
 }
 
 const ( // state of operations
@@ -45,6 +47,7 @@ func NewIRReplica(id int, serverAddr *ReplicaAddress, app IRAppReplica) IRReplic
 		app:    app,
 		record: emptyRecord(),
 		addr:   serverAddr,
+		mu:     &sync.Mutex{},
 	}
 	server.Listen(serverAddr)
 	return &server
@@ -66,6 +69,10 @@ func (r *IRReplicaImpl) Listen(serverAddr *ReplicaAddress) {
 
 func (r *IRReplicaImpl) HandleOperation(request *Message, reply *Message) error {
 	log.Println(r.id, "Handling Operation", request.Request.Op.ToString(), request.Type.ToString())
+	if request.Request.Commit != nil {
+		log.Println("TS", request.Request.Commit.Timestamp)
+	}
+
 	// if request.ProtoType == CONSENSUS {
 	// 	log.Println(request.Request.Prepare.Txn)
 	// }
@@ -73,16 +80,20 @@ func (r *IRReplicaImpl) HandleOperation(request *Message, reply *Message) error 
 	// write operation id and op to its record as tentative and responds to client with <reply,id>
 	if request.Type == MsgPropose {
 		// r.app.ExecInconsistentUpcall(request.Request)
+		r.mu.Lock()
 		r.record.values[*request.Request] = TENTATIVE
+		r.mu.Unlock()
 		reply.Response = NewResponse(RPLY_OK)
 		log.Println("received propose")
 		return nil
 	} else if request.Type == MsgFinalize {
-		log.Println("received finalize", request.Request.Op)
+		log.Println("received finalize", request.Request.Op.ToString())
 		if request.Request.Op == OP_PREPARE {
 			log.Println("received prepare txn", request.Request.Prepare.Txn)
 			r.app.ExecConsensusUpcall(request.Request)
-			r.record.values[*request.Request] = TENTATIVE
+			r.mu.Lock()
+			r.record.values[*request.Request] = FINALIZED
+			r.mu.Unlock()
 			reply.Response = NewResponse(RPLY_OK)
 			reply.Response.Value = "ok"
 			return nil
@@ -110,19 +121,19 @@ func (r *IRReplicaImpl) HandleOperation(request *Message, reply *Message) error 
 		// write id and op to its record as finalized
 		proto := request.ProtoType
 		if proto == CONSENSUS {
-			log.Println("request.Request: consensus ", request.Request)
+			log.Println("request.Request: consensus ", request.Request, request.Request.Commit.Timestamp)
 			response, err := r.app.ExecConsensusUpcall(request.Request)
 			if err != nil {
 				log.Println("ExeConsensus error: ", err)
 			}
 			reply.Response = response
 		} else if proto == INCONSISTENT {
-			log.Println("request.Request: inconsistent", request.Request.Op, request.Request.TxnID, request.Request.Commit.Timestamp)
-			err := r.app.ExecInconsistentUpcall(request.Request)
-			if err != nil {
-				log.Println("ExeInconsistent error: ", err)
-			}
-			reply.Response = NewResponse(RPLY_OK)
+		log.Println("request.Request: inconsistent", request.Request.Op, request.Request.TxnID, request.Request.Commit.Timestamp)
+		err := r.app.ExecInconsistentUpcall(request.Request)
+		if err != nil {
+			log.Println("ExeInconsistent error: ", err)
+		}
+		reply.Response = NewResponse(RPLY_OK)
 		} else {
 			return fmt.Errorf("replica shouldn't get message reply or confirm")
 		}

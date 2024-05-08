@@ -1,6 +1,6 @@
 //go:build exclude
 
-package tapir
+package tapir_kv
 
 type Client interface {
 	// Begin a transaction.

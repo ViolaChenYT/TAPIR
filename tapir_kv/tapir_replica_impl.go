@@ -1,4 +1,4 @@
-package tapir
+package tapir_kv
 
 import (
 	"errors"
@@ -71,6 +71,9 @@ func (r *TapirReplicaImpl) Commit(txnID int, timestamp *Timestamp) error {
 
 	// Updates its versioned store
 	log.Println("Committing transaction", txnID, "trying to get read set")
+	if timedTxn == nil {
+		log.Panicln("AHHHHHHHHHHHHHHHHHHH")
+	}
 	log.Println(timedTxn.txn)
 	readTimes := timedTxn.txn.ReadTime
 	for key, version := range readTimes {
@@ -131,9 +134,12 @@ func (r *TapirReplicaImpl) occCheck(txn *Transaction, timestamp *Timestamp) *Res
 			// No conflict if it has not been read
 			continue
 		}
-
-		if timestamp.LessThan(MaxTimestamp(preparedReads[key])) {
-			lastPreparedRead := MaxTimestamp(preparedReads[key])
+		maxReadTimestamp := MaxTimestamp(preparedReads[key])
+		if maxReadTimestamp == nil {
+			continue
+		} else if timestamp.LessThan(maxReadTimestamp) {
+			// log.Panicln("possible B")
+			lastPreparedRead := maxReadTimestamp
 			return NewResponseWithTime(RPLY_RETRY, lastPreparedRead)
 		} else if timestamp.LessThan(lastRead) {
 			return NewResponseWithTime(RPLY_RETRY, lastRead)

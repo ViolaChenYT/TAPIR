@@ -1,0 +1,4 @@
+COMMIT - Takes(s): 7.0, Count: 8, OPS: 1.1, Avg(us): 1006656, Min(us): 1005568, Max(us): 1009663, 50th(us): 1006591, 90th(us): 1007103, 95th(us): 1009663, 99th(us): 1009663, 99.9th(us): 1009663, 99.99th(us): 1009663
+READ   - Takes(s): 8.1, Count: 8, OPS: 1.0, Avg(us): 597, Min(us): 172, Max(us): 3051, 50th(us): 224, 90th(us): 450, 95th(us): 3051, 99th(us): 3051, 99.9th(us): 3051, 99.99th(us): 3051
+START  - Takes(s): 8.1, Count: 8, OPS: 1.0, Avg(us): 38, Min(us): 6, Max(us): 57, 50th(us): 35, 90th(us): 51, 95th(us): 57, 99th(us): 57, 99.9th(us): 57, 99.99th(us): 57
+TOTAL  - Takes(s): 8.1, Count: 24, OPS: 3.0, Avg(us): 335763, Min(us): 6, Max(us): 1009663, 50th(us): 224, 90th(us): 1007103, 95th(us): 1007103, 99th(us): 1009663, 99.9th(us): 1009663, 99.99th(us): 1009663

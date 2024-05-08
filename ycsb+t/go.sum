@@ -29,6 +29,8 @@ github.com/ViolaChenYT/TAPIR v0.0.0-20240506022431-806cd7263b2d h1:9yp0GoucBIETS
 github.com/ViolaChenYT/TAPIR v0.0.0-20240506022431-806cd7263b2d/go.mod h1:Z5acL9HcYVvY3KMCkFYPY9vVQRUmFV90L0fQPfJwotc=
 github.com/ViolaChenYT/TAPIR v0.0.0-20240507212849-78beff80b764 h1:c2ZkbH5ghD8kRrKar2HAiYv41sWsHrfE3TpKU/ZcIUg=
 github.com/ViolaChenYT/TAPIR v0.0.0-20240507212849-78beff80b764/go.mod h1:Jm8OyX/EcfUMOA/N/8a9K+JKriefFCaeoupog4mC7bo=
+github.com/ViolaChenYT/TAPIR v0.0.0-20240507221625-2171ca0b5f9d h1:YZCZDOQ41rQWcIzuB0hx72wV3BazUQ6WZ/82dXPAbeM=
+github.com/ViolaChenYT/TAPIR v0.0.0-20240507221625-2171ca0b5f9d/go.mod h1:Jm8OyX/EcfUMOA/N/8a9K+JKriefFCaeoupog4mC7bo=
 github.com/XiaoMi/pegasus-go-client v0.0.0-20181029071519-9400942c5d1c h1:3fAhdHMhoSG57DjJ/dqLFfgD+FoooPbQH6szINbrr3k=
 github.com/XiaoMi/pegasus-go-client v0.0.0-20181029071519-9400942c5d1c/go.mod h1:KcL6D/4RZ8RAYzQ5gKI0odcdWUmCVlbQTOlWrhP71CY=
 github.com/aerospike/aerospike-client-go v1.35.2 h1:TWV2Bn59Ig7SM4Zue84fFsPGlfFJX/6xbuGHyYFS/ag=

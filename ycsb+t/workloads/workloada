@@ -35,3 +35,5 @@ insertproportion=0
 
 requestdistribution=uniform
 
+measurementtype=histogram
+measurement.output_file=/Users/yitaochen/Desktop/TAPIR/ycsb+t/output/workloada_r5.dat

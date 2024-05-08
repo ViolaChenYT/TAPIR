@@ -1,4 +1,4 @@
-package tapir
+package tapir_kv
 
 import (
 	"fmt"

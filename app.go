@@ -1,5 +1,5 @@
 //go:build exclude
-package tapir
+package tapir_kv
 
 import (
 	"encoding/json"

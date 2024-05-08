@@ -1,4 +1,4 @@
-package tapir
+package tapir_kv
 
 import (
 	"fmt"
@@ -243,7 +243,7 @@ func TestCommit(t *testing.T) {
 		t.Errorf("Expected val to be %s, got: %s", val1, v1)
 		return
 	}
-	time.Sleep(time.Second)
+	// time.Sleep(time.Second)
 	log.Println("ok commit")
 }
 
@@ -291,13 +291,11 @@ func Test3ReplicaSetup(t *testing.T) {
 }
 
 func TestAbort(t *testing.T) {
-	config := GetConfigA()
-	var replica IRReplica = nil
+	config := GetConfigB()
 	for id, addr := range config.Replicas {
 		store := NewTapirServer(id)
-		replica = NewIRReplica(id, addr, store)
+		NewIRReplica(id, addr, store)
 	}
-	log.Println("Replica created: ", replica)
 
 	client, err := NewTapirClient(config)
 
@@ -318,4 +316,23 @@ func TestAbort(t *testing.T) {
 		t.Errorf("Commit failed, expected to suceed")
 	}
 	client.Abort()
+}
+
+func TestSuperHardTransactions(t *testing.T) {
+	// log.SetOutput(ioutil.Discard)
+	config := GetConfigB()
+	for id, addr := range config.Replicas {
+		store := NewTapirServer(id)
+		NewIRReplica(id, addr, store)
+	}
+
+	client, _ := NewTapirClient(config)
+
+	for j := range 10 {
+		client.Begin()
+		for i := range 25 {
+			client.Write(fmt.Sprintf("%d", i+j*10), fmt.Sprintf("%d", i+j*10))
+		}
+		client.Commit()
+	}
 }

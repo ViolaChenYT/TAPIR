@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"sync"
 
 	. "github.com/ViolaChenYT/TAPIR/common"
 )
@@ -11,6 +12,8 @@ import (
 type VersionedKVStoreImpl struct {
 	store     map[string][]*VersionedValue           // <key, (write_time, value)> pairs of storage
 	lastReads map[string](map[*Timestamp]*Timestamp) // <key, <write_time, last_read_time>> recording last read time of each version
+	storelock sync.Mutex
+	readslock sync.Mutex
 }
 
 func NewVersionedKVStore() VersionedKVStore {
@@ -42,20 +45,24 @@ func (vs *VersionedKVStoreImpl) Get(key string) (*VersionedValue, bool) {
 
 func (vs *VersionedKVStoreImpl) Put(key string, value string, time *Timestamp) {
 	log.Println("Commiting to KV: ", key, value)
+	vs.storelock.Lock()
 	if key_entry, ok := vs.store[key]; ok {
 		vs.store[key] = append(key_entry, &VersionedValue{WriteTime: time, Value: value})
 	} else {
 		log.Println("New entry created")
 		vs.store[key] = []*VersionedValue{{WriteTime: time, Value: value}}
 	}
+	vs.storelock.Unlock()
 }
 
 func (vs *VersionedKVStoreImpl) CommitGet(key string, readTime *Timestamp, commitTime *Timestamp) {
 	// Create the <version, last_read_time> map if not exists
+	vs.readslock.Lock()
 	if vs.lastReads[key] == nil {
 		vs.lastReads[key] = make(map[*Timestamp]*Timestamp)
 	}
 	vs.lastReads[key][readTime] = commitTime
+	vs.readslock.Unlock()
 }
 
 func (vs *VersionedKVStoreImpl) GetLastRead(key string, time *Timestamp) (*Timestamp, bool) {

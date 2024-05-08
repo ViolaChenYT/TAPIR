@@ -1,4 +1,4 @@
-package tapir
+package tapir_kv
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ func NewTapirServer(id int) IRAppReplica {
 func (server *TapirServer) ExecInconsistentUpcall(op *Request) error {
 	switch op.Op {
 	case OP_COMMIT:
-		log.Println("asking for commit")
+		log.Println("asking for commit", op.Commit.Timestamp)
 		server.store.Commit(op.TxnID, op.Commit.Timestamp)
 	case OP_ABORT:
 		server.store.Abort(op.TxnID)

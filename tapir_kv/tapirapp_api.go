@@ -1,4 +1,4 @@
-package tapir
+package tapir_kv
 
 // TapirApp is a table database storing records
 type TapirApp interface {

@@ -1,6 +1,9 @@
 package common
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 type Timestamp struct {
 	Timestamp time.Time
@@ -24,7 +27,7 @@ func NewCustomTimestamp(clientID int, timestamp time.Time) *Timestamp {
 
 func EmptyTime() *Timestamp {
 	return &Timestamp{
-		Timestamp: time.Time{},
+		Timestamp: time.Now(),
 		ID:        -1,
 	}
 }
@@ -66,6 +69,9 @@ func MinTimestamp(timestamps []*Timestamp) *Timestamp {
 	}
 	min := timestamps[0]
 	for _, ts := range timestamps[1:] {
+		if ts == nil {
+			continue
+		}
 		if ts.LessThan(min) {
 			min = ts
 		}
@@ -74,11 +80,15 @@ func MinTimestamp(timestamps []*Timestamp) *Timestamp {
 }
 
 func MaxTimestamp(timestamps []*Timestamp) *Timestamp {
+	log.Println("looking for max timestamp")
 	if len(timestamps) == 0 {
 		return nil
 	}
 	max := timestamps[0]
 	for _, ts := range timestamps[1:] {
+		if ts == nil {
+			continue
+		}
 		if ts.GreaterThan(max) {
 			max = ts
 		}

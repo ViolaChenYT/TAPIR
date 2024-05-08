@@ -1,0 +1,6 @@
+ABORT  - Takes(s): 53.3, Count: 38, OPS: 0.7, Avg(us): 891, Min(us): 399, Max(us): 2541, 50th(us): 833, 90th(us): 1139, 95th(us): 1397, 99th(us): 2541, 99.9th(us): 2541, 99.99th(us): 2541
+COMMIT - Takes(s): 61.3, Count: 62, OPS: 1.0, Avg(us): 1003908, Min(us): 1001984, Max(us): 1009151, 50th(us): 1004031, 90th(us): 1005055, 95th(us): 1006079, 99th(us): 1008639, 99.9th(us): 1009151, 99.99th(us): 1009151
+READ   - Takes(s): 62.3, Count: 62, OPS: 1.0, Avg(us): 347, Min(us): 146, Max(us): 4467, 50th(us): 244, 90th(us): 402, 95th(us): 558, 99th(us): 1344, 99.9th(us): 4467, 99.99th(us): 4467
+START  - Takes(s): 62.3, Count: 100, OPS: 1.6, Avg(us): 30, Min(us): 4, Max(us): 87, 50th(us): 28, 90th(us): 56, 95th(us): 63, 99th(us): 76, 99.9th(us): 87, 99.99th(us): 87
+TOTAL  - Takes(s): 62.3, Count: 262, OPS: 4.2, Avg(us): 237789, Min(us): 4, Max(us): 1009151, 50th(us): 244, 90th(us): 1004031, 95th(us): 1004543, 99th(us): 1006079, 99.9th(us): 1009151, 99.99th(us): 1009151
+UPDATE_ERROR - Takes(s): 53.3, Count: 38, OPS: 0.7, Avg(us): 315, Min(us): 150, Max(us): 912, 50th(us): 312, 90th(us): 373, 95th(us): 429, 99th(us): 912, 99.9th(us): 912, 99.99th(us): 912
