@@ -1,3 +1,6 @@
+# Running Unit Test
+`go test -run SpecificTestName` in IR or tapir_kv subdirectory
+
 # Running YCSB-T Benchmark 
 Inside folder ycsb+t, run `make` to compile the code, if you encounter "stdlib.h not found" error on MacOS, try `export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)`.
 
